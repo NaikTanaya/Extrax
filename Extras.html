@@ -35,36 +35,20 @@
 <div>
     <span>Showing <span th:text="${response.size()}"></span> entries</span>
     <br />
-    <a th:if="${page > 0}" id="prevPage" class="btn btn-primary mt-2">Previous</a>
-    <a th:if="${hasMoreEntries}" id="nextPage" class="btn btn-primary mt-2">Next</a>
+    <a th:if="${page > 0}" th:href="@{/execution-status(limit=${limit}, page=${page - 1})}" class="btn btn-primary mt-2">Previous</a>
+    <a th:if="${hasMoreEntries}" th:href="@{/execution-status(limit=${limit}, page=${nextPage})}" class="btn btn-primary mt-2">Next</a>
 </div>
 
 <script>
     $(document).ready(function () {
         // Initialize DataTable
-        var table = $('#dataTable').DataTable({
-            "paging": false, // Disable DataTables paging for custom control
+        $('#dataTable').DataTable({
+            "paging": false, // Disable DataTables paging
             "searching": true,
             "info": true,
             "lengthChange": true,
             "pageLength": 20, // Default number of rows displayed per page
             "order": [] // Enables sorting for all columns
-        });
-
-        // Handle previous button click
-        $('#prevPage').click(function(event) {
-            event.preventDefault(); // Prevent default action
-            let currentPage = parseInt("{{page}}");
-            if (currentPage > 0) {
-                window.location.href = `execution-status?limit=${{{limit}}}&page=${currentPage - 1}`;
-            }
-        });
-
-        // Handle next button click
-        $('#nextPage').click(function(event) {
-            event.preventDefault(); // Prevent default action
-            let currentPage = parseInt("{{page}}");
-            window.location.href = `execution-status?limit=${{{limit}}}&page=${currentPage + 1}`;
         });
     });
 </script>
