@@ -4,58 +4,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Execution Status</title>
-    <!-- Include DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+
+    <!-- jQuery and DataTables JS -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
+    <div class="container">
+        <h2>Execution Status</h2>
 
-<div class="container">
-    <h1>Execution Status</h1>
-    <table id="dataTable" class="display">
-        <thead>
-            <tr>
-                <th>Technical API Name</th>
-                <th>Major Version</th>
-                <th>Instance Name</th>
-                <th>Environment</th>
-                <th>Execution Datetime</th>
-                <!-- Add other headers as necessary -->
-            </tr>
-        </thead>
-    </table>
-</div>
+        <!-- DataTable for displaying server-side paginated data -->
+        <table id="dataTable" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Technical API Name</th>
+                    <th>Major Version</th>
+                    <th>Instance Name</th>
+                    <th>Execution Datetime</th>
+                    <!-- Add more columns as necessary -->
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be dynamically loaded via DataTables -->
+            </tbody>
+        </table>
+    </div>
 
-<script>
-$(document).ready(function () {
-    // Initialize DataTable
-    var table = $('#dataTable').DataTable({
-        "processing": true,
-        "serverSide": true,
-        "ajax": {
-            "url": "/execution-status",
-            "type": "GET",
-            "data": function(d) {
-                // Pass the limit and offset to the server
-                d.limit = {{limit}}; // Set from model attribute
-                d.offset = {{offset}}; // Set from model attribute
-            }
-        },
-        "columns": [
-            { "data": "TECHNICAL_API_NAME" },
-            { "data": "MAJOR_VERSION" },
-            { "data": "INSTANCE_NAME" },
-            { "data": "ENVIRONMENT" },
-            { "data": "EXECUTION_DATETIME" }
-            // Add other columns as necessary
-        ],
-        "pageLength": 20, // Default number of rows displayed per page
-        "lengthMenu": [10, 20, 50, 100], // Options for number of rows per page
-        "order": [] // Disable ordering
-    });
-});
-</script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var table = $('#dataTable').DataTable({
+                "serverSide": true,  // Enable server-side processing
+                "processing": true,  // Show processing indicator
+                "ajax": function(data, callback, settings) {
+                    var limit = data.length;   // Number of records to fetch (page length)
+                    var offset = data.start;   // Starting point for the records (offset)
 
+                    // Perform AJAX request to server
+                    $.ajax({
+                        url: '/execution-status',  // Your endpoint to fetch data
+                        type: 'GET',
+                        data: {
+                            limit: limit,         // Pass limit to server
+                            offset: offset        // Pass offset to server
+                        },
+                        success: function(response) {
+                            // Prepare the DataTable response
+                            callback({
+                                draw: data.draw,              // Pass draw index to maintain pagination state
+                                recordsTotal: response.recordsTotal,  // Total records in the database
+                                recordsFiltered: response.recordsFiltered, // Total filtered records (usually same as recordsTotal if no filtering)
+                                data: response.data           // Actual data for the current page
+                            });
+                        },
+                        error: function(jqXHR, textStatus, errorThrown) {
+                            console.error("Error fetching data: ", textStatus, errorThrown);
+                        }
+                    });
+                },
+                "columns": [
+                    { "data": "TECHNICAL_API_NAME" },  // Technical API Name column
+                    { "data": "MAJOR_VERSION" },      // Major Version column
+                    { "data": "INSTANCE_NAME" },      // Instance Name column
+                    { "data": "EXECUTION_DATETIME" }  // Execution Datetime column
+                ],
+                "lengthChange": true,   // Allow the user to change the number of rows displayed
+                "pageLength": 20,       // Default number of rows displayed per page
+                "order": [],            // Default ordering of columns (empty for no ordering)
+                "paging": true          // Enable pagination
+            });
+        });
+    </script>
 </body>
 </html>
