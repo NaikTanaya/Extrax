@@ -2,55 +2,76 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Execution Status</title>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataTable Example</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
-<div>
-    <h1>Execution Status</h1>
     <table id="dataTable" class="display">
         <thead>
             <tr>
-                <th>Technical API Name</th>
-                <th>Major Version</th>
-                <th>Instance Name</th>
-                <th>Environment</th>
-                <th>Execution Datetime</th>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Office</th>
+                <th>Age</th>
+                <th>Start date</th>
+                <th>Salary</th>
             </tr>
         </thead>
         <tbody>
-            <tr th:each="entry : ${response}">
-                <td th:text="${entry['TECHNICAL_API_NAME']}">API Name</td>
-                <td th:text="${entry['MAJOR_VERSION']}">Version</td>
-                <td th:text="${entry['INSTANCE_NAME']}">Instance</td>
-                <td th:text="${entry['ENVIRONMENT']}">Environment</td>
-                <td th:text="${entry['EXECUTION_DATETIME']}">Datetime</td>
+            <tr>
+                <td>Tiger Nixon</td>
+                <td>System Architect</td>
+                <td>Edinburgh</td>
+                <td>61</td>
+                <td>2011-04-25</td>
+                <td>$320,800</td>
             </tr>
+            <tr>
+                <td>Garrett Winters</td>
+                <td>Accountant</td>
+                <td>Tokyo</td>
+                <td>63</td>
+                <td>2011-07-25</td>
+                <td>$170,750</td>
+            </tr>
+            <tr>
+                <td>Ashton Cox</td>
+                <td>Junior Technical Author</td>
+                <td>San Francisco</td>
+                <td>66</td>
+                <td>2009-01-12</td>
+                <td>$86,000</td>
+            </tr>
+            <!-- Add more rows as needed -->
         </tbody>
     </table>
-</div>
 
-<div>
-    <span>Showing <span th:text="${response.size()}"></span> entries</span>
-    <br />
-    <a th:if="${page > 0}" th:href="@{/execution-status(limit=${limit}, page=${page - 1})}" class="btn btn-primary mt-2">Previous</a>
-    <a th:if="${hasMoreEntries}" th:href="@{/execution-status(limit=${limit}, page=${nextPage})}" class="btn btn-primary mt-2">Next</a>
-</div>
+    <script>
+        $(document).ready(function () {
+            // Initialize DataTable with enhanced features
+            var table = $('#dataTable').DataTable({
+                "paging": true,          // Enables pagination
+                "searching": true,       // Enables searching
+                "info": true,            // Displays table information
+                "lengthChange": true,    // Allows changing the number of entries per page
+                "pageLength": 2,         // Default number of rows displayed per page
+                "order": []              // Enables sorting for all columns
+            });
 
-<script>
-    $(document).ready(function () {
-        // Initialize DataTable
-        $('#dataTable').DataTable({
-            "paging": false, // Disable DataTables paging
-            "searching": true,
-            "info": true,
-            "lengthChange": true,
-            "pageLength": 20, // Default number of rows displayed per page
-            "order": [] // Enables sorting for all columns
+            // Capture clicks on the pagination buttons
+            $('#dataTable_paginate').on('click', 'a', function() {
+                var action = $(this).text(); // Get the text of the clicked button
+
+                if (action.includes("Previous")) {
+                    console.log("Previous button clicked");
+                } else if (action.includes("Next")) {
+                    console.log("Next button clicked");
+                }
+            });
         });
-    });
-</script>
+    </script>
 </body>
 </html>
