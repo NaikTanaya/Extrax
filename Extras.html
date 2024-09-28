@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Execution Status</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+<div>
+    <h1>Execution Status</h1>
+    <table id="dataTable" class="display">
+        <thead>
+            <tr>
+                <th>Technical API Name</th>
+                <th>Major Version</th>
+                <th>Instance Name</th>
+                <th>Environment</th>
+                <th>Execution Datetime</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="entry : ${response}">
+                <td th:text="${entry['TECHNICAL_API_NAME']}">API Name</td>
+                <td th:text="${entry['MAJOR_VERSION']}">Version</td>
+                <td th:text="${entry['INSTANCE_NAME']}">Instance</td>
+                <td th:text="${entry['ENVIRONMENT']}">Environment</td>
+                <td th:text="${entry['EXECUTION_DATETIME']}">Datetime</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div>
+    <span>Showing <span th:text="${response.size()}"></span> entries</span>
+    <br />
+    <a th:if="${page > 0}" id="prevPage" class="btn btn-primary mt-2">Previous</a>
+    <a th:if="${hasMoreEntries}" id="nextPage" class="btn btn-primary mt-2">Next</a>
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Initialize DataTable
+        var table = $('#dataTable').DataTable({
+            "paging": false, // Disable DataTables paging for custom control
+            "searching": true,
+            "info": true,
+            "lengthChange": true,
+            "pageLength": 20, // Default number of rows displayed per page
+            "order": [] // Enables sorting for all columns
+        });
+
+        // Handle previous button click
+        $('#prevPage').click(function(event) {
+            event.preventDefault(); // Prevent default action
+            let currentPage = parseInt("{{page}}");
+            if (currentPage > 0) {
+                window.location.href = `execution-status?limit=${{{limit}}}&page=${currentPage - 1}`;
+            }
+        });
+
+        // Handle next button click
+        $('#nextPage').click(function(event) {
+            event.preventDefault(); // Prevent default action
+            let currentPage = parseInt("{{page}}");
+            window.location.href = `execution-status?limit=${{{limit}}}&page=${currentPage + 1}`;
+        });
+    });
+</script>
+</body>
+</html>
