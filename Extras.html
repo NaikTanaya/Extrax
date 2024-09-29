@@ -72,47 +72,21 @@
         
 
 
+@GetMapping("/fetch-execution-status")
+public ResponseEntity<Map<String, Object>> getExecutionStatus(
+    @RequestParam(name = "limit", defaultValue = "10") int limit,
+    @RequestParam(name = "offset", defaultValue = "0") int offset) {
 
+    long recordsTotal = totalRecords("your_table_name"); // Total records
+    List<Map<String, Object>> data = fetchExecutionSummaryData(limit, offset); // Fetch data
 
+    Map<String, Object> response = new HashMap<>();
+    response.put("draw", 1); // Example draw value
+    response.put("recordsTotal", recordsTotal);
+    response.put("recordsFiltered", recordsTotal); // No filtering in this case
+    response.put("data", data); // Actual data
 
-@GetMapping("/execution-status")
-public String showStatusPage(
-    FilterData filterData,  
-    @RequestParam(name = "numberOfDaysAllowed", required = false, defaultValue = "7") int numberOfDaysAllowed,  
-    @RequestParam(name = "limit", required = false, defaultValue = "10") int limit,  
-    @RequestParam(name = "offset", required = false, defaultValue = "0") int offset,  
-    @RequestParam(name = "draw", required = false, defaultValue = "1") int draw,  
-    @RequestParam(name = "ajax", required = false, defaultValue = "false") boolean ajax,
-    Model model) {
-
-    // Fetch total number of records and the data for the current page
-    long recordsTotal = totalRecords("your_table_name");
-    List<Map<String, Object>> data = fetchExecutionSummaryData(filterData, numberOfDaysAllowed, limit, offset);
-
-    if (ajax) {
-        // If it's an AJAX request, prepare the response map for DataTables
-        Map<String, Object> response = new HashMap<>();
-        response.put("draw", draw);  // DataTables' draw counter
-        response.put("recordsTotal", recordsTotal);
-        response.put("recordsFiltered", recordsTotal);  // Assuming no filtering
-        response.put("data", data);  // Data to be shown in the table
-
-        return toJson(response);  // Return JSON response directly (no Thymeleaf view needed)
-    } else {
-        // If it's a normal request, prepare the data for the HTML page
-        model.addAttribute("totalRecords", recordsTotal);
-        model.addAttribute("executionSummaryData", data);  // Add data to the model
-        
-        // Return the name of the Thymeleaf view for normal rendering
-        return "execution-status";  // HTML page name (e.g., Thymeleaf template or JSP)
-    }
+    return ResponseEntity.ok(response); // Ensure this returns a ResponseEntity
 }
 
-private String toJson(Map<String, Object> response) {
-    try {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.writeValueAsString(response);  // Convert Map to JSON string
-    } catch (JsonProcessingException e) {
-        throw new RuntimeException("Error converting response to JSON", e);
-    }
-}
+
