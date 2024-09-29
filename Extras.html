@@ -75,9 +75,10 @@
 
 
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.ui.Model;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @GetMapping("/execution-status")
 public String showStatusPage(
@@ -94,24 +95,16 @@ public String showStatusPage(
     List<Map<String, Object>> data = fetchExecutionSummaryData(filterData, numberOfDaysAllowed, limit, offset);
 
     if (ajax) {
-        // If it's an AJAX request, create and return the JSON response
+        // If it's an AJAX request, prepare the response map for DataTables
         Map<String, Object> response = new HashMap<>();
-        response.put("draw", draw);  // The draw number from DataTables
+        response.put("draw", draw);  // DataTables' draw counter
         response.put("recordsTotal", recordsTotal);
         response.put("recordsFiltered", recordsTotal);  // Assuming no filtering
-        response.put("data", data);
+        response.put("data", data);  // Data to be shown in the table
 
-        try {
-            // Convert the response map to JSON
-            String jsonResponse = new ObjectMapper().writeValueAsString(response);
-            
-            // Return a ResponseEntity with JSON and HTTP status OK (200)
-            return ResponseEntity.ok().body(jsonResponse);
-        } catch (Exception e) {
-            // Handle the exception and return an error response
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{}");  // Empty JSON on error
-        }
+        // Return the map for Spring to automatically convert to JSON
+        model.addAttribute("response", response);  
+        return "execution-status :: json";  // Indicate this is part of a fragment (if you're using Thymeleaf)
     } else {
         // If not an AJAX request, prepare the data for the HTML page
         model.addAttribute("totalRecords", recordsTotal);
