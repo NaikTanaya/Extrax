@@ -11,32 +11,6 @@
     <!-- jQuery and DataTables JS -->
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
-
-    <!-- DataTables Pagination CSS -->
-    <style>
-        /* Custom pagination styles to make it look more like Google */
-        .dataTables_paginate {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .dataTables_paginate .paginate_button {
-            margin: 0 3px;
-            padding: 5px 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-            color: #007bff;
-            text-decoration: none;
-        }
-        .dataTables_paginate .paginate_button.current {
-            background-color: #007bff;
-            color: white;
-        }
-        .dataTables_paginate .paginate_button.disabled {
-            color: #ccc;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -50,7 +24,6 @@
                     <th>Major Version</th>
                     <th>Instance Name</th>
                     <th>Execution Date</th>
-                    <!-- Add more columns as needed -->
                 </tr>
             </thead>
             <tbody>
@@ -61,33 +34,18 @@
 
     <script type="text/javascript">
         $(document).ready(function () {
-            // Initialize DataTable
             var table = $('#dataTable').DataTable({
-                "serverSide": true, // Enable server-side processing
-                "processing": true, // Show loading indicator
-                "ajax": function(data, callback, settings) {
-                    var limit = data.length; // Number of records to fetch (page length)
-                    var offset = data.start; // Starting point for the records (row offset)
-
-                    $.ajax({
-                        url: '/execution-status',
-                        type: 'GET',
-                        data: {
-                            limit: limit,
-                            offset: offset
-                        },
-                        success: function(response) {
-                            callback({
-                                draw: data.draw, 
-                                recordsTotal: response.recordsTotal,
-                                recordsFiltered: response.recordsFiltered,
-                                data: response.data 
-                            });
-                        },
-                        error: function(jqXHR, textStatus, errorThrown) {
-                            console.error("Error fetching data: ", textStatus, errorThrown);
-                        }
-                    });
+                "serverSide": true,   // Enable server-side processing
+                "processing": true,   // Show the processing indicator
+                "ajax": {
+                    url: '/execution-status',   // Same endpoint for both page load and AJAX
+                    type: 'GET',
+                    data: function(d) {
+                        d.ajax = true;  // Set the AJAX flag
+                        d.limit = d.length;   // Number of records per page
+                        d.offset = d.start;   // Row offset (start position)
+                        d.draw = d.draw;      // Draw counter
+                    }
                 },
                 "columns": [
                     { "data": "TECHNICAL_API_NAME" },
@@ -95,11 +53,9 @@
                     { "data": "INSTANCE_NAME" },
                     { "data": "EXECUTION_DATETIME" }
                 ],
-                "pagingType": "full_numbers",  // Enable full number pagination with first/last/prev/next buttons
-                "lengthChange": false, // Disable the ability to change page length (optional)
-                "pageLength": 10, // Default page size
-                "order": [], // Disable default sorting
-
+                "pagingType": "full_numbers",   // Enable full pagination with first/last/prev/next buttons
+                "pageLength": 10,   // Default number of records per page
+                "order": [],   // Disable default sorting
                 "language": {
                     "paginate": {
                         "first": "<<",
@@ -113,6 +69,7 @@
     </script>
 </body>
 </html>
+        
 
 
 
