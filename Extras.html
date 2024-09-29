@@ -119,19 +119,31 @@
 
 
 @GetMapping("/execution-status")
-@ResponseBody
-public Map<String, Object> getExecutionStatus(
+public String showStatusPage(
     @RequestParam(name = "limit", required = false, defaultValue = "10") int limit,
-    @RequestParam(name = "offset", required = false, defaultValue = "0") int offset) {
+    @RequestParam(name = "offset", required = false, defaultValue = "0") int offset,
+    @RequestParam(name = "draw", required = false, defaultValue = "1") int draw,
+    @RequestParam(name = "ajax", required = false, defaultValue = "false") boolean ajax,
+    Model model) {
 
-    long recordsTotal = totalRecords("your_table_name");  // Total number of records
-    List<Map<String, Object>> data = fetchExecutionSummaryData(limit, offset);  // Fetch data for the current page
+    // Fetch total number of records from the database
+    long recordsTotal = totalRecords("your_table_name");
 
-    Map<String, Object> response = new HashMap<>();
-    response.put("draw", 1);  // Pass the draw number
-    response.put("recordsTotal", recordsTotal);
-    response.put("recordsFiltered", recordsTotal);  // Same as total since no filtering applied
-    response.put("data", data);  // The actual page data
+    // Fetch the paginated data from the database
+    List<Map<String, Object>> data = fetchExecutionSummaryData(limit, offset);
 
-    return response;
+    if (ajax) {
+        // If this is an AJAX request, return JSON data for DataTables
+        Map<String, Object> response = new HashMap<>();
+        response.put("draw", draw);
+        response.put("recordsTotal", recordsTotal);
+        response.put("recordsFiltered", recordsTotal);  // Since no filters are applied
+        response.put("data", data);  // Paginated data
+
+        return new Gson().toJson(response);  // Convert the map to JSON using Gson
+    } else {
+        // For the initial page rendering, return the HTML page
+        model.addAttribute("totalRecords", recordsTotal);
+        return "execution-status";  // The name of your HTML page
+    }
 }
