@@ -75,11 +75,6 @@
 
 
 
-import org.springframework.ui.Model;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 @GetMapping("/execution-status")
 public String showStatusPage(
     FilterData filterData,  
@@ -102,15 +97,22 @@ public String showStatusPage(
         response.put("recordsFiltered", recordsTotal);  // Assuming no filtering
         response.put("data", data);  // Data to be shown in the table
 
-        // Return the map for Spring to automatically convert to JSON
-        model.addAttribute("response", response);  
-        return "execution-status :: json";  // Indicate this is part of a fragment (if you're using Thymeleaf)
+        return toJson(response);  // Return JSON response directly (no Thymeleaf view needed)
     } else {
-        // If not an AJAX request, prepare the data for the HTML page
+        // If it's a normal request, prepare the data for the HTML page
         model.addAttribute("totalRecords", recordsTotal);
         model.addAttribute("executionSummaryData", data);  // Add data to the model
         
-        // Return the view name (e.g., the Thymeleaf or JSP page)
-        return "execution-status";  // This should be the name of your HTML view
+        // Return the name of the Thymeleaf view for normal rendering
+        return "execution-status";  // HTML page name (e.g., Thymeleaf template or JSP)
+    }
+}
+
+private String toJson(Map<String, Object> response) {
+    try {
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.writeValueAsString(response);  // Convert Map to JSON string
+    } catch (JsonProcessingException e) {
+        throw new RuntimeException("Error converting response to JSON", e);
     }
 }
