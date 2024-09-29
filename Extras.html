@@ -6,11 +6,37 @@
     <title>Execution Status</title>
 
     <!-- DataTables CSS -->
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css">
 
     <!-- jQuery and DataTables JS -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+
+    <!-- DataTables Pagination CSS -->
+    <style>
+        /* Custom pagination styles to make it look more like Google */
+        .dataTables_paginate {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .dataTables_paginate .paginate_button {
+            margin: 0 3px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .dataTables_paginate .paginate_button.current {
+            background-color: #007bff;
+            color: white;
+        }
+        .dataTables_paginate .paginate_button.disabled {
+            color: #ccc;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -23,8 +49,8 @@
                     <th>Technical API Name</th>
                     <th>Major Version</th>
                     <th>Instance Name</th>
-                    <th>Execution Datetime</th>
-                    <!-- Add more columns as necessary -->
+                    <th>Execution Date</th>
+                    <!-- Add more columns as needed -->
                 </tr>
             </thead>
             <tbody>
@@ -35,28 +61,27 @@
 
     <script type="text/javascript">
         $(document).ready(function () {
+            // Initialize DataTable
             var table = $('#dataTable').DataTable({
-                "serverSide": true,  // Enable server-side processing
-                "processing": true,  // Show processing indicator
+                "serverSide": true, // Enable server-side processing
+                "processing": true, // Show loading indicator
                 "ajax": function(data, callback, settings) {
-                    var limit = data.length;   // Number of records to fetch (page length)
-                    var offset = data.start;   // Starting point for the records (offset)
+                    var limit = data.length; // Number of records to fetch (page length)
+                    var offset = data.start; // Starting point for the records (row offset)
 
-                    // Perform AJAX request to server
                     $.ajax({
-                        url: '/execution-status',  // Your endpoint to fetch data
+                        url: '/execution-status',
                         type: 'GET',
                         data: {
-                            limit: limit,         // Pass limit to server
-                            offset: offset        // Pass offset to server
+                            limit: limit,
+                            offset: offset
                         },
                         success: function(response) {
-                            // Prepare the DataTable response
                             callback({
-                                draw: data.draw,              // Pass draw index to maintain pagination state
-                                recordsTotal: response.recordsTotal,  // Total records in the database
-                                recordsFiltered: response.recordsFiltered, // Total filtered records (usually same as recordsTotal if no filtering)
-                                data: response.data           // Actual data for the current page
+                                draw: data.draw, 
+                                recordsTotal: response.recordsTotal,
+                                recordsFiltered: response.recordsFiltered,
+                                data: response.data 
                             });
                         },
                         error: function(jqXHR, textStatus, errorThrown) {
@@ -65,15 +90,24 @@
                     });
                 },
                 "columns": [
-                    { "data": "TECHNICAL_API_NAME" },  // Technical API Name column
-                    { "data": "MAJOR_VERSION" },      // Major Version column
-                    { "data": "INSTANCE_NAME" },      // Instance Name column
-                    { "data": "EXECUTION_DATETIME" }  // Execution Datetime column
+                    { "data": "TECHNICAL_API_NAME" },
+                    { "data": "MAJOR_VERSION" },
+                    { "data": "INSTANCE_NAME" },
+                    { "data": "EXECUTION_DATETIME" }
                 ],
-                "lengthChange": true,   // Allow the user to change the number of rows displayed
-                "pageLength": 20,       // Default number of rows displayed per page
-                "order": [],            // Default ordering of columns (empty for no ordering)
-                "paging": true          // Enable pagination
+                "pagingType": "full_numbers",  // Enable full number pagination with first/last/prev/next buttons
+                "lengthChange": false, // Disable the ability to change page length (optional)
+                "pageLength": 10, // Default page size
+                "order": [], // Disable default sorting
+
+                "language": {
+                    "paginate": {
+                        "first": "<<",
+                        "last": ">>",
+                        "next": ">",
+                        "previous": "<"
+                    }
+                }
             });
         });
     </script>
