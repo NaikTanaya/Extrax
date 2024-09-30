@@ -1,92 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Execution Status</title>
+document.addEventListener('DOMContentLoaded', function() {
+    // Attach event listener to the document for "Next" button
+    document.addEventListener('click', function(event) {
+        // Check if the clicked element is the "Next" button
+        if (event.target && event.target.id === 'dataTable_next') {
+            alert('Next Button Clicked!');
+            // Your logic for the next button here
+        }
+    });
 
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css">
-
-    <!-- jQuery and DataTables JS -->
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
-</head>
-<body>
-    <div class="container">
-        <h2>Execution Status</h2>
-
-        <!-- DataTable for displaying server-side paginated data -->
-        <table id="dataTable" class="display" style="width:100%">
-            <thead>
-                <tr>
-                    <th>Technical API Name</th>
-                    <th>Major Version</th>
-                    <th>Instance Name</th>
-                    <th>Execution Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Data will be dynamically loaded via DataTables -->
-            </tbody>
-        </table>
-    </div>
-
-    <script type="text/javascript">
-        $(document).ready(function () {
-            var table = $('#dataTable').DataTable({
-                "serverSide": true,   // Enable server-side processing
-                "processing": true,   // Show the processing indicator
-                "ajax": {
-                    url: '/execution-status',   // Same endpoint for both page load and AJAX
-                    type: 'GET',
-                    data: function(d) {
-                        d.ajax = true;  // Set the AJAX flag
-                        d.limit = d.length;   // Number of records per page
-                        d.offset = d.start;   // Row offset (start position)
-                        d.draw = d.draw;      // Draw counter
-                    }
-                },
-                "columns": [
-                    { "data": "TECHNICAL_API_NAME" },
-                    { "data": "MAJOR_VERSION" },
-                    { "data": "INSTANCE_NAME" },
-                    { "data": "EXECUTION_DATETIME" }
-                ],
-                "pagingType": "full_numbers",   // Enable full pagination with first/last/prev/next buttons
-                "pageLength": 10,   // Default number of records per page
-                "order": [],   // Disable default sorting
-                "language": {
-                    "paginate": {
-                        "first": "<<",
-                        "last": ">>",
-                        "next": ">",
-                        "previous": "<"
-                    }
-                }
-            });
-        });
-    </script>
-</body>
-</html>
-        
-
-
-@GetMapping("/fetch-execution-status")
-public ResponseEntity<Map<String, Object>> getExecutionStatus(
-    @RequestParam(name = "limit", defaultValue = "10") int limit,
-    @RequestParam(name = "offset", defaultValue = "0") int offset) {
-
-    long recordsTotal = totalRecords("your_table_name"); // Total records
-    List<Map<String, Object>> data = fetchExecutionSummaryData(limit, offset); // Fetch data
-
-    Map<String, Object> response = new HashMap<>();
-    response.put("draw", 1); // Example draw value
-    response.put("recordsTotal", recordsTotal);
-    response.put("recordsFiltered", recordsTotal); // No filtering in this case
-    response.put("data", data); // Actual data
-
-    return ResponseEntity.ok(response); // Ensure this returns a ResponseEntity
-}
-
-
+    // Attach event listener to the document for "Previous" button
+    document.addEventListener('click', function(event) {
+        // Check if the clicked element is the "Previous" button
+        if (event.target && event.target.id === 'dataTable_previous') {
+            alert('Previous Button Clicked!');
+            // Your logic for the previous button here
+        }
+    });
+});
