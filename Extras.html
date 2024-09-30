@@ -1,36 +1,55 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Attach event listener to the document for "Next" button
-    document.addEventListener('click', function(event) {
-        // Check if the clicked element is the "Next" button
-        if (event.target && event.target.id === 'dataTable_next') {
-            alert('Next Button Clicked!');
-            // Your logic for the next button here
-        }
+// Wait until the DOM is fully loaded
+$(document).ready(function () {
+
+    // Initialize DataTables with server-side processing
+    var table = $('#dataTable').DataTable({
+        "serverSide": true,
+        "processing": true,
+        "ajax": {
+            url: '/fetch-execution-status',  // Server-side URL
+            type: 'GET',
+            data: function(d) {
+                return {
+                    limit: d.length,   // Entries per page
+                    offset: d.start    // Start index for pagination
+                };
+            }
+        },
+        "pagingType": "full_numbers",  // Enable full pagination (with first, last, next, previous buttons)
+        "columns": [
+            { "data": "TECHNICAL_API_NAME" },
+            { "data": "MAJOR_VERSION" },
+            { "data": "INSTANCE_NAME" },
+            { "data": "EXECUTION_DATETIME" }
+        ],
+        "pageLength": 10,  // Default page size
     });
 
-    // Attach event listener to the document for "Previous" button
-    document.addEventListener('click', function(event) {
-        // Check if the clicked element is the "Previous" button
-        if (event.target && event.target.id === 'dataTable_previous') {
-            alert('Previous Button Clicked!');
-            // Your logic for the previous button here
-        }
-    });
+    // Manipulate the Next button in DataTables
+    let nextButton = document.getElementById("dataTable_next");
+    if (nextButton) {
+        nextButton.addEventListener("click", function () {
+            alert("Next Button Clicked!");
+            // Insert custom logic to handle "Next" pagination if necessary
+        });
+    }
+
+    // Manipulate the Previous button in DataTables
+    let prevButton = document.getElementById("dataTable_previous");
+    if (prevButton) {
+        prevButton.addEventListener("click", function () {
+            alert("Previous Button Clicked!");
+            // Insert custom logic to handle "Previous" pagination if necessary
+        });
+    }
+    
+    // Function to manually trigger DataTables' next/previous action
+    function moveToNextPage() {
+        table.page('next').draw(false);  // Move to the next page
+    }
+
+    function moveToPreviousPage() {
+        table.page('previous').draw(false);  // Move to the previous page
+    }
+    
 });
-
-
-<div>
-    <span>Showing <span th:text="${response.size()}"></span> entries</span>
-    <br />
-    <!-- Previous Button -->
-    <a id="dataTable_previous"
-       th:if="${page > 0}" 
-       th:href="@{/execution-status(limit=${limit}, page=${page - 1})}" 
-       class="btn btn-primary mt-2">Previous</a>
-
-    <!-- Next Button -->
-    <a id="dataTable_next"
-       th:if="${hasMoreEntries}" 
-       th:href="@{/execution-status(limit=${limit}, page=${page + 1})}" 
-       class="btn btn-primary mt-2">Next</a>
-</div>
