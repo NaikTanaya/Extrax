@@ -17,3 +17,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+
+<div>
+    <span>Showing <span th:text="${response.size()}"></span> entries</span>
+    <br />
+    <!-- Previous Button -->
+    <a id="dataTable_previous"
+       th:if="${page > 0}" 
+       th:href="@{/execution-status(limit=${limit}, page=${page - 1})}" 
+       class="btn btn-primary mt-2">Previous</a>
+
+    <!-- Next Button -->
+    <a id="dataTable_next"
+       th:if="${hasMoreEntries}" 
+       th:href="@{/execution-status(limit=${limit}, page=${page + 1})}" 
+       class="btn btn-primary mt-2">Next</a>
+</div>
