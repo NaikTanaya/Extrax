@@ -37,3 +37,53 @@ public class ExecutionStatusController {
         return ResponseEntity.ok(response); // Return response map as JSON
     }
 }
+
+
+
+
+
+$(document).ready(function() {
+    $('#dataTable').DataTable({
+        "paging": true,
+        "pageLength": 10,
+        "lengthChange": true,
+        "processing": true,
+        "serverSide": true,  // Enable server-side processing
+        "ajax": {
+            "url": "/execution-status",  // Your Spring Boot endpoint
+            "type": "GET",
+            "data": function(d) {
+                return {
+                    limit: d.length,             // Number of rows per page
+                    offset: d.start,             // Page offset (for pagination)
+                    searchValue: d.search.value, // Search term (for filtering)
+                    sortColumn: d.columns[d.order[0].column].data,  // Column to sort
+                    sortDirection: d.order[0].dir  // Sort direction (asc/desc)
+                };
+            }
+        },
+        "columns": [
+            { "data": "EXECUTION_ID" },
+            { "data": "TECHNICAL_API_NAME" },
+            { "data": "MAJOR_VERSION" },
+            { "data": "APE_API_ID" },
+            { "data": "DEMAND_TYPE" },
+            { "data": "ENVIRONMENT" },
+            { "data": "PLATFORM" },
+            { "data": "CLUSTER" },
+            { "data": "REGION" },
+            { "data": "UAT_START_DATE" },
+            { "data": "EXECUTION_DATETIME" },
+            {
+                "data": null,
+                "render": function(data, type, row) {
+                    return row.USER_ID + " - " + row.USER_NAME;
+                }
+            },
+            { "data": "TECH_LEAD_APPROVAL_STATUS" },
+            { "data": "TECH_LEAD_APPROVED_BY" },
+            { "data": "APPROVAL_STATUS" },
+            { "data": "APPROVED_BY" }
+        ]
+    });
+});            
