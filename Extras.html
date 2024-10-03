@@ -121,25 +121,25 @@ $(document).ready(function() {
 
     <script>
         // Initialize variables for pagination
-        var limit = 10;   // Number of rows per page
+        var limit = 50;   // Number of rows per page
         var offset = 0;   // Starting offset
 
         $(document).ready(function () {
             // Initialize DataTable
             var table = $('#dataTable').DataTable({
                 "processing": true,          // Show processing indicator
-                "serverSide": true,          // Enable server-side processing
+                "serverSide": true,         // Enable server-side processing
                 "ajax": function (data, callback, settings) {
-                    // Calculate the offset based on current page and limit
-                    offset = data.start;    // This will be the start index (0 for first page)
+                    // Calculate the offset based on current page
+                    offset = Math.floor(data.start / limit); // Calculate the page index
 
                     // Perform the AJAX request to fetch data
                     $.ajax({
-                        url: "/api/execution-status",
+                        url: "/api/execution-status",  // Adjust this URL according to your API
                         type: "GET",
                         data: {
                             limit: limit,   // Send the limit
-                            offset: offset  // Send the current offset
+                            offset: offset  // Send the calculated offset
                         },
                         success: function (response) {
                             // Return data to DataTable
@@ -186,13 +186,13 @@ $(document).ready(function() {
 
             // Handle manual pagination
             $('#dataTable').on('click', '.paginate_button.next', function () {
-                offset += limit; // Increment offset for next page
+                offset++; // Increment offset for the next page (0, 1, 2,...)
                 table.ajax.reload(); // Reload the data with the new offset
             });
 
             $('#dataTable').on('click', '.paginate_button.previous', function () {
                 if (offset > 0) {
-                    offset -= limit; // Decrement offset for previous page, but not below 0
+                    offset--; // Decrement offset for previous page, but not below 0
                     table.ajax.reload(); // Reload the data with the new offset
                 }
             });
