@@ -87,3 +87,46 @@ $(document).ready(function() {
         ]
     });
 });            
+
+
+
+            $('#dataTable').DataTable({
+    "processing": true,
+    "serverSide": true,
+    "ajax": {
+        "url": "/execution-status",
+        "type": "GET",
+        "data": function(d) {
+            // Prepare the parameters sent to the server
+            return {
+                limit: d.length,             // Page size
+                offset: d.start,             // Offset for pagination
+                searchValue: d.search.value, // Search filter value (if any)
+                sortColumn: d.columns[d.order[0].column].data,  // Sort column
+                sortDirection: d.order[0].dir  // Sort direction (asc/desc)
+            };
+        },
+        "complete": function (response) {
+            // Handle pagination buttons (Next/Previous)
+            var hasMoreEntries = response.responseJSON.hasMoreEntries;
+
+            if (!hasMoreEntries) {
+                // Disable Next button if no more entries are available
+                $('.paginate_button.next').addClass('disabled');
+            } else {
+                // Enable Next button if more entries are available
+                $('.paginate_button.next').removeClass('disabled');
+            }
+
+            // If the user tries to navigate to a previous page when offset is 0
+            if (response.responseJSON.offset === 0) {
+                // Disable Previous button
+                $('.paginate_button.previous').addClass('disabled');
+            } else {
+                // Enable Previous button if offset > 0
+                $('.paginate_button.previous').removeClass('disabled');
+            }
+        }
+    },
+    "pageLength": 10,  // Default page size
+});
