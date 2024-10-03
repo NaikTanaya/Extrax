@@ -130,3 +130,24 @@ $(document).ready(function() {
     },
     "pageLength": 10,  // Default page size
 });
+
+            @Controller
+public class PageController {
+
+    @GetMapping("/execution-status-page")
+    public String showExecutionStatusPage(Model model) {
+        // Here, instead of fetching the JSON directly from the service or database, 
+        // you can call the endpoint to fetch JSON data (simulated in this case).
+        // In practice, you may directly call your service instead of calling a REST endpoint.
+        
+        // Use RestTemplate or WebClient to call the first controller's JSON endpoint.
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<Map> response = restTemplate.getForEntity("http://localhost:8080/get-json-data", Map.class);
+        
+        // Pass the fetched JSON data to the model
+        model.addAttribute("jsonData", response.getBody());
+
+        // Return the HTML page to render DataTable
+        return "execution-status-page";
+    }
+}
