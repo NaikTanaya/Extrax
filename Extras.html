@@ -89,65 +89,115 @@ $(document).ready(function() {
 });            
 
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Execution Status DataTable</title>
 
-            $('#dataTable').DataTable({
-    "processing": true,
-    "serverSide": true,
-    "ajax": {
-        "url": "/execution-status",
-        "type": "GET",
-        "data": function(d) {
-            // Prepare the parameters sent to the server
-            return {
-                limit: d.length,             // Page size
-                offset: d.start,             // Offset for pagination
-                searchValue: d.search.value, // Search filter value (if any)
-                sortColumn: d.columns[d.order[0].column].data,  // Sort column
-                sortDirection: d.order[0].dir  // Sort direction (asc/desc)
-            };
-        },
-        "complete": function (response) {
-            // Handle pagination buttons (Next/Previous)
-            var hasMoreEntries = response.responseJSON.hasMoreEntries;
+    <!-- Include jQuery and DataTables CSS/JS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
 
-            if (!hasMoreEntries) {
-                // Disable Next button if no more entries are available
-                $('.paginate_button.next').addClass('disabled');
-            } else {
-                // Enable Next button if more entries are available
-                $('.paginate_button.next').removeClass('disabled');
-            }
+    <h1>Execution Status</h1>
 
-            // If the user tries to navigate to a previous page when offset is 0
-            if (response.responseJSON.offset === 0) {
-                // Disable Previous button
-                $('.paginate_button.previous').addClass('disabled');
-            } else {
-                // Enable Previous button if offset > 0
-                $('.paginate_button.previous').removeClass('disabled');
-            }
-        }
-    },
-    "pageLength": 10,  // Default page size
-});
+    <table id="dataTable" class="display" style="width:100%">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be populated dynamically via DataTable -->
+        </tbody>
+    </table>
 
-            @Controller
-public class PageController {
+    <script>
+        // Initialize variables for pagination
+        var limit = 10;   // Number of rows per page
+        var offset = 0;   // Starting offset
 
-    @GetMapping("/execution-status-page")
-    public String showExecutionStatusPage(Model model) {
-        // Here, instead of fetching the JSON directly from the service or database, 
-        // you can call the endpoint to fetch JSON data (simulated in this case).
-        // In practice, you may directly call your service instead of calling a REST endpoint.
-        
-        // Use RestTemplate or WebClient to call the first controller's JSON endpoint.
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<Map> response = restTemplate.getForEntity("http://localhost:8080/get-json-data", Map.class);
-        
-        // Pass the fetched JSON data to the model
-        model.addAttribute("jsonData", response.getBody());
+        $(document).ready(function () {
+            // Initialize DataTable
+            var table = $('#dataTable').DataTable({
+                "processing": true,          // Show processing indicator
+                "serverSide": true,          // Enable server-side processing
+                "ajax": function (data, callback, settings) {
+                    // Calculate the offset based on current page and limit
+                    offset = data.start;    // This will be the start index (0 for first page)
 
-        // Return the HTML page to render DataTable
-        return "execution-status-page";
-    }
-}
+                    // Perform the AJAX request to fetch data
+                    $.ajax({
+                        url: "/api/execution-status",
+                        type: "GET",
+                        data: {
+                            limit: limit,   // Send the limit
+                            offset: offset  // Send the current offset
+                        },
+                        success: function (response) {
+                            // Return data to DataTable
+                            callback({
+                                draw: data.draw,               // The draw count for DataTables
+                                recordsTotal: response.totalRecords,   // Total records available
+                                recordsFiltered: response.totalRecords, // Total records filtered
+                                data: response.data            // The actual data returned by the server
+                            });
+
+                            // Logic to enable/disable pagination buttons based on server response
+                            if (!response.hasMoreEntries) {
+                                // Disable next button if there are no more entries
+                                $('.paginate_button.next').addClass('disabled');
+                            } else {
+                                $('.paginate_button.next').removeClass('disabled');
+                            }
+
+                            if (offset === 0) {
+                                // Disable previous button if at the start
+                                $('.paginate_button.previous').addClass('disabled');
+                            } else {
+                                $('.paginate_button.previous').removeClass('disabled');
+                            }
+                        },
+                        error: function () {
+                            alert("Error fetching data");
+                        }
+                    });
+                },
+                "columns": [
+                    { "data": "id" },         // Maps the "id" field in the JSON response
+                    { "data": "name" },       // Maps the "name" field
+                    { "data": "status" },     // Maps the "status" field
+                    { "data": "date" }        // Maps the "date" field
+                ],
+                "language": {
+                    "paginate": {
+                        "previous": "Previous",  // Custom label for Previous button
+                        "next": "Next"           // Custom label for Next button
+                    }
+                }
+            });
+
+            // Handle manual pagination
+            $('#dataTable').on('click', '.paginate_button.next', function () {
+                offset += limit; // Increment offset for next page
+                table.ajax.reload(); // Reload the data with the new offset
+            });
+
+            $('#dataTable').on('click', '.paginate_button.previous', function () {
+                if (offset > 0) {
+                    offset -= limit; // Decrement offset for previous page, but not below 0
+                    table.ajax.reload(); // Reload the data with the new offset
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
