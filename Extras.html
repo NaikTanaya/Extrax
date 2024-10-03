@@ -1,55 +1,38 @@
-// Wait until the DOM is fully loaded
-$(document).ready(function () {
+"drawCallback": function () {
+    var api = this.api();
+    var info = api.page.info();
 
-    // Initialize DataTables with server-side processing
-    var table = $('#dataTable').DataTable({
-        "serverSide": true,
-        "processing": true,
-        "ajax": {
-            url: '/fetch-execution-status',  // Server-side URL
-            type: 'GET',
-            data: function(d) {
-                return {
-                    limit: d.length,   // Entries per page
-                    offset: d.start    // Start index for pagination
-                };
-            }
-        },
-        "pagingType": "full_numbers",  // Enable full pagination (with first, last, next, previous buttons)
-        "columns": [
-            { "data": "TECHNICAL_API_NAME" },
-            { "data": "MAJOR_VERSION" },
-            { "data": "INSTANCE_NAME" },
-            { "data": "EXECUTION_DATETIME" }
-        ],
-        "pageLength": 10,  // Default page size
+    // Get the next button element
+    var nextButton = $('.paginate_button.next', api.table().container());
+
+    // Determine if it's the last page
+    if (info.page === info.pages - 1) {
+        nextButton.addClass('disabled'); // Disable next button
+        nextButton.text('No More Records'); // Change text to indicate end
+    } else {
+        // Check if there are more records
+        var hasMoreEntries = "[[${hasMoreEntries}]]"; // This should be a boolean from your server
+        var responseSize = "[[${response.size()}]]"; // Size of the current response
+        var nextOffset = "[[${nextoffset}]]"; // Calculate next offset
+
+        if (hasMoreEntries && responseSize > 0) {
+            nextButton.removeClass('disabled'); // Enable button
+            nextButton.text('Next Record'); // Change text to 'Next Record'
+        } else {
+            nextButton.addClass('disabled'); // Disable button
+            nextButton.text('No More Records'); // Change text to indicate end
+        }
+    }
+
+    // Click handler for the next button
+    nextButton.off('click').on('click', function () {
+        if (!nextButton.hasClass('disabled')) {
+            var limit = "[[${limit}]]"; // Limit for next request
+            var offset = "[[${offset}]]"; // Current offset
+            var nextOffset = "[[${nextoffset}]]"; // New offset for next records
+
+            var url = "/execution-status?limit=" + limit + "&offset=" + nextOffset;
+            window.location.href = url; // Navigate to the next records
+        }
     });
-
-    // Manipulate the Next button in DataTables
-    let nextButton = document.getElementById("dataTable_next");
-    if (nextButton) {
-        nextButton.addEventListener("click", function () {
-            alert("Next Button Clicked!");
-            // Insert custom logic to handle "Next" pagination if necessary
-        });
-    }
-
-    // Manipulate the Previous button in DataTables
-    let prevButton = document.getElementById("dataTable_previous");
-    if (prevButton) {
-        prevButton.addEventListener("click", function () {
-            alert("Previous Button Clicked!");
-            // Insert custom logic to handle "Previous" pagination if necessary
-        });
-    }
-    
-    // Function to manually trigger DataTables' next/previous action
-    function moveToNextPage() {
-        table.page('next').draw(false);  // Move to the next page
-    }
-
-    function moveToPreviousPage() {
-        table.page('previous').draw(false);  // Move to the previous page
-    }
-    
-});
+}
