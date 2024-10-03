@@ -89,7 +89,8 @@ $(document).ready(function() {
 });            
 
 
-<!DOCTYPE html>
+
+            <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -119,85 +120,91 @@ $(document).ready(function() {
         </tbody>
     </table>
 
+    <!-- Pagination Buttons -->
+    <button id="prevPage" disabled>Previous</button>
+    <button id="nextPage">Next</button>
+
     <script>
-        // Initialize variables for pagination
-        var limit = 50;   // Number of rows per page
-        var offset = 0;   // Starting offset
+        var limit = 50;   // Limit number of records per request
+        var offset = 0;   // Offset for server-side pagination
+        var hasMoreEntries = true; // Server flag to indicate more records
 
-        $(document).ready(function () {
-            // Initialize DataTable
-            var table = $('#dataTable').DataTable({
-                "processing": true,          // Show processing indicator
-                "serverSide": true,         // Enable server-side processing
-                "ajax": function (data, callback, settings) {
-                    // Calculate the offset based on current page
-                    offset = Math.floor(data.start / limit); // Calculate the page index
+        // Initialize the DataTable
+        var table = $('#dataTable').DataTable({
+            "processing": true,
+            "serverSide": false, // We're doing manual pagination
+            "paging": false,     // Disable default paging
+            "ordering": false,   // Disable column ordering
+            "searching": false,  // Disable searching
+            "info": false,       // Disable info text
+            "columns": [
+                { "data": "id" },
+                { "data": "name" },
+                { "data": "status" },
+                { "data": "date" }
+            ]
+        });
 
-                    // Perform the AJAX request to fetch data
-                    $.ajax({
-                        url: "/api/execution-status",  // Adjust this URL according to your API
-                        type: "GET",
-                        data: {
-                            limit: limit,   // Send the limit
-                            offset: offset  // Send the calculated offset
-                        },
-                        success: function (response) {
-                            // Return data to DataTable
-                            callback({
-                                draw: data.draw,               // The draw count for DataTables
-                                recordsTotal: response.totalRecords,   // Total records available
-                                recordsFiltered: response.totalRecords, // Total records filtered
-                                data: response.data            // The actual data returned by the server
-                            });
-
-                            // Logic to enable/disable pagination buttons based on server response
-                            if (!response.hasMoreEntries) {
-                                // Disable next button if there are no more entries
-                                $('.paginate_button.next').addClass('disabled');
-                            } else {
-                                $('.paginate_button.next').removeClass('disabled');
-                            }
-
-                            if (offset === 0) {
-                                // Disable previous button if at the start
-                                $('.paginate_button.previous').addClass('disabled');
-                            } else {
-                                $('.paginate_button.previous').removeClass('disabled');
-                            }
-                        },
-                        error: function () {
-                            alert("Error fetching data");
-                        }
-                    });
+        // Function to fetch and append records
+        function fetchData() {
+            $.ajax({
+                url: "/api/execution-status",
+                type: "GET",
+                data: {
+                    limit: limit,
+                    offset: offset
                 },
-                "columns": [
-                    { "data": "id" },         // Maps the "id" field in the JSON response
-                    { "data": "name" },       // Maps the "name" field
-                    { "data": "status" },     // Maps the "status" field
-                    { "data": "date" }        // Maps the "date" field
-                ],
-                "language": {
-                    "paginate": {
-                        "previous": "Previous",  // Custom label for Previous button
-                        "next": "Next"           // Custom label for Next button
+                success: function(response) {
+                    // Append the fetched data to the DataTable
+                    table.rows.add(response.data).draw(false); // Append without resetting the table
+
+                    // Update hasMoreEntries
+                    hasMoreEntries = response.hasMoreEntries;
+
+                    // Enable or disable Next button based on hasMoreEntries
+                    if (!hasMoreEntries) {
+                        $('#nextPage').attr('disabled', true);
                     }
+
+                    // Enable the Previous button if offset > 0
+                    if (offset > 0) {
+                        $('#prevPage').attr('disabled', false);
+                    }
+                },
+                error: function() {
+                    alert("Error fetching data");
                 }
             });
+        }
 
-            // Handle manual pagination
-            $('#dataTable').on('click', '.paginate_button.next', function () {
-                offset++; // Increment offset for the next page (0, 1, 2,...)
-                table.ajax.reload(); // Reload the data with the new offset
-            });
+        // Load initial data
+        fetchData();
 
-            $('#dataTable').on('click', '.paginate_button.previous', function () {
-                if (offset > 0) {
-                    offset--; // Decrement offset for previous page, but not below 0
-                    table.ajax.reload(); // Reload the data with the new offset
-                }
-            });
+        // Next button click
+        $('#nextPage').on('click', function() {
+            if (hasMoreEntries) {
+                offset += 1; // Increment offset to fetch next set of records
+                fetchData();
+            }
+        });
+
+        // Previous button click
+        $('#prevPage').on('click', function() {
+            if (offset > 0) {
+                offset -= 1; // Decrement offset to go back to previous records
+                fetchData();
+            }
+
+            // Disable the Previous button if we're back at the first set of records
+            if (offset === 0) {
+                $('#prevPage').attr('disabled', true);
+            }
         });
     </script>
+
+</body>
+</html>
+
 
 </body>
 </html>
