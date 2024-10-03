@@ -1,38 +1,39 @@
-"drawCallback": function () {
-    var api = this.api();
-    var info = api.page.info();
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-    // Get the next button element
-    var nextButton = $('.paginate_button.next', api.table().container());
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-    // Determine if it's the last page
-    if (info.page === info.pages - 1) {
-        nextButton.addClass('disabled'); // Disable next button
-        nextButton.text('No More Records'); // Change text to indicate end
-    } else {
-        // Check if there are more records
-        var hasMoreEntries = "[[${hasMoreEntries}]]"; // This should be a boolean from your server
-        var responseSize = "[[${response.size()}]]"; // Size of the current response
-        var nextOffset = "[[${nextoffset}]]"; // Calculate next offset
+@RestController
+public class ExecutionStatusController {
 
-        if (hasMoreEntries && responseSize > 0) {
-            nextButton.removeClass('disabled'); // Enable button
-            nextButton.text('Next Record'); // Change text to 'Next Record'
-        } else {
-            nextButton.addClass('disabled'); // Disable button
-            nextButton.text('No More Records'); // Change text to indicate end
-        }
+    @GetMapping("/execution-status")
+    public ResponseEntity<Map<String, Object>> getExecutionStatus(
+            @RequestParam(name = "limit", required = false, defaultValue = "500") int limit,
+            @RequestParam(name = "offset", required = false, defaultValue = "0") int offset) {
+
+        // Fetch execution summary data
+        List<Map<String, Object>> fetchExecutionSummaryData = 
+                cbAPICodeValidationHelper.fetchExecutionSummaryData(null, 9999, limit, offset);
+
+        // Get total records count
+        long totalRecords = cbAPICodeValidationHelper.getTotalRecords();
+
+        // Determine if there are more entries
+        boolean hasMoreEntries = fetchExecutionSummaryData.size() == limit;
+
+        // Prepare the response map
+        Map<String, Object> response = new HashMap<>();
+        response.put("data", fetchExecutionSummaryData);
+        response.put("totalRecords", totalRecords);
+        response.put("hasMoreEntries", hasMoreEntries);
+        response.put("limit", limit);
+        response.put("offset", offset);
+        response.put("nextOffset", offset + limit);
+
+        return ResponseEntity.ok(response); // Return response map as JSON
     }
-
-    // Click handler for the next button
-    nextButton.off('click').on('click', function () {
-        if (!nextButton.hasClass('disabled')) {
-            var limit = "[[${limit}]]"; // Limit for next request
-            var offset = "[[${offset}]]"; // Current offset
-            var nextOffset = "[[${nextoffset}]]"; // New offset for next records
-
-            var url = "/execution-status?limit=" + limit + "&offset=" + nextOffset;
-            window.location.href = url; // Navigate to the next records
-        }
-    });
 }
