@@ -5,7 +5,8 @@ var offset = 0;  // Offset starts at 0
 var table = $('#dataTable').DataTable({
     serverSide: true,        // Enable server-side processing
     processing: true,        // Show processing indicator
-    paging: false,           // Disable default pagination, since we handle it manually
+    paging: true,            // Enable pagination in DataTables
+    pageLength: limit,       // Set the page length to 50 records
     ajax: function(data, callback, settings) {
         // Perform the AJAX request to fetch data
         $.ajax({
@@ -18,17 +19,18 @@ var table = $('#dataTable').DataTable({
             success: function(response) {
                 console.log(response);
 
-                // Append new data to the DataTable without clearing it
-                table.rows.add(response.data).draw();  // Appends new rows to the existing table data
+                // Clear existing data and replace with new data
+                table.clear().rows.add(response.data).draw();  // Clear and add new data
 
                 // Update pagination buttons based on server response
                 updatePaginationButtons(response.hasMoreEntries);
 
                 // Optional: If you need to pass additional information (like total records)
                 callback({
-                    draw: data.draw,
-                    recordsTotal: response.totalRecords,     // Total records available
-                    recordsFiltered: response.totalRecords,  // Total records filtered
+                    draw: data.draw,                   // Draw count for DataTables
+                    recordsTotal: response.totalRecords,  // Total records available
+                    recordsFiltered: response.totalRecords,  // Total records after filtering
+                    data: response.data                // The actual data returned by the server
                 });
             },
             error: function() {
@@ -78,21 +80,16 @@ function updatePaginationButtons(hasMoreEntries) {
     }
 }
 
-// Handle the 'Next' button click event
-$('.paginate_button.next').on('click', function() {
-    if (!$(this).hasClass('disabled')) {
-        offset += limit; // Increase offset to load the next set of records
-        table.ajax.reload(null, false);  // Reload the DataTable without resetting the paging (keep current view)
-    }
-});
+// Trigger next set of records when user reaches the last page
+$('#dataTable').on('page.dt', function () {
+    var pageInfo = table.page.info();  // Get current page info
 
-// Handle the 'Previous' button click event
-$('.paginate_button.previous').on('click', function() {
-    if (!$(this).hasClass('disabled') && offset > 0) {
-        offset -= limit; // Decrease offset to load the previous set of records
-        table.ajax.reload(null, false);  // Reload the DataTable without resetting the paging (keep current view)
+    // If the user is on the last page (they've reviewed all 50 records)
+    if (pageInfo.page === pageInfo.pages - 1 && $('.paginate_button.next').hasClass('disabled') === false) {
+        offset += limit;  // Move to the next offset
+        table.ajax.reload();  // Reload the table with the new offset data
     }
 });
 
 // Initial data load
-table.ajax.reload(null, false);  // Initial load without resetting the table
+table.ajax.reload();
