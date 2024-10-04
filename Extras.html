@@ -1,174 +1,98 @@
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+var limit = 50;  // Number of records per page
+var offset = 0;  // Offset starts at 0
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+// Initialize the DataTable
+var table = $('#dataTable').DataTable({
+    serverSide: true,        // Enable server-side processing
+    processing: true,        // Show processing indicator
+    paging: false,           // Disable default pagination, since we handle it manually
+    ajax: function(data, callback, settings) {
+        // Perform the AJAX request to fetch data
+        $.ajax({
+            url: '/yourAPIEndpoint',  // Your API endpoint for data fetching
+            type: 'GET',
+            data: {
+                limit: limit,        // Send limit (always 50)
+                offset: offset       // Send the current offset
+            },
+            success: function(response) {
+                console.log(response);
 
-@RestController
-public class ExecutionStatusController {
+                // Append new data to the DataTable without clearing it
+                table.rows.add(response.data).draw();  // Appends new rows to the existing table data
 
-    @GetMapping("/execution-status")
-    public ResponseEntity<Map<String, Object>> getExecutionStatus(
-            @RequestParam(name = "limit", required = false, defaultValue = "500") int limit,
-            @RequestParam(name = "offset", required = false, defaultValue = "0") int offset) {
+                // Update pagination buttons based on server response
+                updatePaginationButtons(response.hasMoreEntries);
 
-        // Fetch execution summary data
-        List<Map<String, Object>> fetchExecutionSummaryData = 
-                cbAPICodeValidationHelper.fetchExecutionSummaryData(null, 9999, limit, offset);
+                // Optional: If you need to pass additional information (like total records)
+                callback({
+                    draw: data.draw,
+                    recordsTotal: response.totalRecords,     // Total records available
+                    recordsFiltered: response.totalRecords,  // Total records filtered
+                });
+            },
+            error: function() {
+                alert('Error fetching data');
+            }
+        });
+    },
+    columns: [
+        { data: 'EXECUTION_ID' },
+        { data: 'TECHNICAL_API_NAME' },
+        { data: 'MAJOR_VERSION' },
+        { data: 'APE_API_ID' },
+        { data: 'DEMAND_TYPE' },
+        { data: 'ENVIRONMENT' },
+        { data: 'PLATFORM' },
+        { data: 'CLUSTER' },
+        { data: 'REGION' },
+        { data: 'TASK_START_DATE' },
+        { data: 'EXECUTION_DATETIME' },
+        { data: 'USER_NAME' },
+        { data: 'TECH_LEAD_APPROVAL_STATUS' },
+        { data: 'TECH_LEAD_APPROVED_BY' },
+        { data: 'APPROVAL_STATUS' }
+    ],
+    language: {
+        paginate: {
+            previous: "Previous",   // Custom label for the "Previous" button
+            next: "Next"            // Custom label for the "Next" button
+        }
+    }
+});
 
-        // Get total records count
-        long totalRecords = cbAPICodeValidationHelper.getTotalRecords();
+// Function to update pagination buttons based on server response
+function updatePaginationButtons(hasMoreEntries) {
+    // Disable the 'Next' button if no more entries are available
+    if (!hasMoreEntries) {
+        $('.paginate_button.next').addClass('disabled');
+    } else {
+        $('.paginate_button.next').removeClass('disabled');
+    }
 
-        // Determine if there are more entries
-        boolean hasMoreEntries = fetchExecutionSummaryData.size() == limit;
-
-        // Prepare the response map
-        Map<String, Object> response = new HashMap<>();
-        response.put("data", fetchExecutionSummaryData);
-        response.put("totalRecords", totalRecords);
-        response.put("hasMoreEntries", hasMoreEntries);
-        response.put("limit", limit);
-        response.put("offset", offset);
-        response.put("nextOffset", offset + limit);
-
-        return ResponseEntity.ok(response); // Return response map as JSON
+    // Disable the 'Previous' button if we're at the start
+    if (offset === 0) {
+        $('.paginate_button.previous').addClass('disabled');
+    } else {
+        $('.paginate_button.previous').removeClass('disabled');
     }
 }
 
+// Handle the 'Next' button click event
+$('.paginate_button.next').on('click', function() {
+    if (!$(this).hasClass('disabled')) {
+        offset += limit; // Increase offset to load the next set of records
+        table.ajax.reload(null, false);  // Reload the DataTable without resetting the paging (keep current view)
+    }
+});
 
+// Handle the 'Previous' button click event
+$('.paginate_button.previous').on('click', function() {
+    if (!$(this).hasClass('disabled') && offset > 0) {
+        offset -= limit; // Decrease offset to load the previous set of records
+        table.ajax.reload(null, false);  // Reload the DataTable without resetting the paging (keep current view)
+    }
+});
 
-
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Execution Status DataTable</title>
-
-    <!-- Include jQuery and DataTables CSS/JS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
-</head>
-<body>
-
-    <h1>Execution Status</h1>
-
-    <table id="dataTable" class="display" style="width:100%">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Data will be populated dynamically via DataTable -->
-        </tbody>
-    </table>
-
-    <!-- Pagination Buttons -->
-    <button id="prevPage" disabled>Previous</button>
-    <button id="nextPage">Next</button>
-
-    <script>
-        var limit = 50;   // Limit number of records per request
-        var offset = 0;   // Offset for server-side pagination
-        var hasMoreEntries = true; // Server flag to indicate more records
-
-        $(document).ready(function () {
-            
-            // Initialize the DataTable
-            var table = $('#dataTable').DataTable({
-                "processing": true,
-                "serverSide": false, // We're doing manual pagination
-                "paging": false,     // Disable default paging
-                "ordering": false,   // Disable column ordering
-                "searching": false,  // Disable searching
-                "info": false,       // Disable info text
-                "columns": [
-                    { "data": "id" },
-                    { "data": "name" },
-                    { "data": "status" },
-                    { "data": "date" }
-                ]
-            });
-
-            // Function to fetch and append records
-            function fetchData() {
-                $.ajax({
-                    url: "/api/execution-status",
-                    type: "GET",
-                    data: {
-                        limit: limit,
-                        offset: offset
-                    },
-                    success: function(response) {
-                        // Check if response has data
-                        if (response && response.data) {
-                            // Append the fetched data to the DataTable
-                            table.rows.add(response.data).draw(false); // Append without resetting the table
-
-                            // Update hasMoreEntries
-                            hasMoreEntries = response.hasMoreEntries;
-
-                            // Enable or disable Next button based on hasMoreEntries
-                            if (!hasMoreEntries) {
-                                $('#nextPage').attr('disabled', true);
-                            } else {
-                                $('#nextPage').attr('disabled', false); // Enable Next if more entries are available
-                            }
-
-                            // Enable the Previous button if offset > 0
-                            if (offset > 0) {
-                                $('#prevPage').attr('disabled', false);
-                            } else {
-                                $('#prevPage').attr('disabled', true); // Disable Previous if offset is 0
-                            }
-                        } else {
-                            alert("No data available");
-                        }
-                    },
-                    error: function() {
-                        alert("Error fetching data");
-                    }
-                });
-            }
-
-            // Load initial data
-            fetchData();
-
-            // Next button click
-            $('#nextPage').on('click', function() {
-                if (hasMoreEntries) {
-                    offset += 1; // Increase offset for next set of records
-                    fetchData();  // Fetch next set of data
-                }
-            });
-
-            // Previous button click
-            $('#prevPage').on('click', function() {
-                if (offset > 0) {
-                    offset -= 1; // Decrease offset for previous set of records
-                    fetchData();  // Fetch previous set of data
-                }
-            });
-        });
-    </script>
-
-</body>
-</html>
-
-    </script>
-
-</body>
-</html>
-
-
-</body>
-</html>
+// Initial data load
+table.ajax.reload(null, false);  // Initial load without resetting the table
