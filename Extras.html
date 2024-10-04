@@ -1,104 +1,59 @@
-var limit = 50;  // Number of records per page
-var offset = 0;  // Offset starts at 0
+$(document).ready(function() {
+    var limit = 50;
+    var offset = 0;
+    var hasMoreEntries = true;
+    
+    // Initialize DataTable
+    var t = $('#example').DataTable({
+        paging: true,
+        pageLength: limit, // Show 50 records per page
+        serverSide: false  // Use client-side pagination for already loaded records
+    });
 
-// Initialize the DataTable
-var table = $('#dataTable').DataTable({
-    paging: true,          // Enable default DataTables pagination
-    processing: true,      // Show processing indicator
-    serverSide: false,     // We are handling pagination on the client-side
-    pageLength: limit,     // Set number of records per page to 50
-    ajax: function(data, callback, settings) {
-        // Perform the AJAX request to fetch data
+    // Function to load data
+    function loadData() {
+        if (!hasMoreEntries) return; // Exit if there are no more records
+
         $.ajax({
-            url: '/yourAPIEndpoint',  // Your API endpoint for data fetching
+            url: '/yourAPIEndpoint',
             type: 'GET',
             data: {
-                limit: limit,        // Send limit (always 50)
-                offset: offset       // Send the current offset
+                limit: limit,
+                offset: offset
             },
             success: function(response) {
-                console.log(response);
+                hasMoreEntries = response.hasMoreEntries;
 
-                // Append new rows to the DataTable (do NOT clear existing data)
-                table.rows.add(response.data).draw();  // Append the new data to the existing table
-
-                // Update the pagination buttons based on server response
-                updatePaginationButtons(response.hasMoreEntries);
-
-                // Optional callback for DataTable, can be used if needed
-                callback({
-                    draw: data.draw,                   // Draw count for DataTables
-                    recordsTotal: response.totalRecords,  // Total records available
-                    recordsFiltered: response.totalRecords,  // Total records after filtering
-                    data: response.data                // The actual data returned by the server
+                // Append new rows to the DataTable without clearing existing data
+                response.data.forEach(function(item, index) {
+                    t.row.add([
+                        item.executionId,
+                        item.technicalApiName,
+                        item.majorVersion,
+                        item.apeApiId,
+                        item.demandType
+                    ]).draw(false);  // false to prevent full re-draw, appends to the current rows
                 });
+
+                // Increase the offset for the next batch
+                offset += limit;
             },
             error: function() {
                 alert('Error fetching data');
             }
         });
-    },
-    columns: [
-        { data: 'EXECUTION_ID' },
-        { data: 'TECHNICAL_API_NAME' },
-        { data: 'MAJOR_VERSION' },
-        { data: 'APE_API_ID' },
-        { data: 'DEMAND_TYPE' },
-        { data: 'ENVIRONMENT' },
-        { data: 'PLATFORM' },
-        { data: 'CLUSTER' },
-        { data: 'REGION' },
-        { data: 'TASK_START_DATE' },
-        { data: 'EXECUTION_DATETIME' },
-        { data: 'USER_NAME' },
-        { data: 'TECH_LEAD_APPROVAL_STATUS' },
-        { data: 'TECH_LEAD_APPROVED_BY' },
-        { data: 'APPROVAL_STATUS' }
-    ],
-    language: {
-        paginate: {
-            previous: "Previous",   // Custom label for the "Previous" button
-            next: "Next"            // Custom label for the "Next" button
+    }
+
+    // Load the initial batch of 50 records
+    loadData();
+
+    // Handle "Next" button click when on the last page
+    $('#example_paginate').on('click', '.paginate_button.next', function() {
+        var info = t.page.info();
+        
+        // Check if we're on the last page and more entries are available
+        if (info.page === (info.pages - 1) && hasMoreEntries) {
+            loadData();  // Fetch and append the next batch of records
         }
-    }
+    });
 });
-
-// Function to update pagination buttons based on server response
-function updatePaginationButtons(hasMoreEntries) {
-    // Disable the 'Next' button if no more entries are available
-    if (!hasMoreEntries) {
-        $('.paginate_button.next').addClass('disabled');
-    } else {
-        $('.paginate_button.next').removeClass('disabled');
-    }
-
-    // Disable the 'Previous' button if we're at the start
-    if (offset === 0) {
-        $('.paginate_button.previous').addClass('disabled');
-    } else {
-        $('.paginate_button.previous').removeClass('disabled');
-    }
-}
-
-// Handle the 'Next' button click event
-$('.paginate_button.next').on('click', function() {
-    // Check if user is viewing the last page of the current data
-    var info = table.page.info();
-    if (info.page === (info.pages - 1) && !$(this).hasClass('disabled')) {
-        // Increment the offset to fetch the next set of records
-        offset += limit;
-        // Fetch the next set of records and append them
-        table.ajax.reload(null, false);  // Reload data without resetting the table
-    }
-});
-
-// Handle the 'Previous' button click event
-$('.paginate_button.previous').on('click', function() {
-    if (!$(this).hasClass('disabled') && offset > 0) {
-        offset -= limit; // Decrease offset to load the previous set of records
-        table.ajax.reload(null, false);  // Reload data without resetting the table
-    }
-});
-
-// Initial data load
-table.ajax.reload();
