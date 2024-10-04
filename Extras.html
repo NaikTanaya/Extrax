@@ -63,3 +63,97 @@ $(document).ready(function() {
         }
     });
 });
+
+
+
+
+
+
+$(document).ready(function() {
+    var limit = 500;          // Number of records to fetch per request
+    var offset = 0;           // Offset to fetch data from
+    var hasMoreEntries = true; // Flag to check if more entries are available
+
+    // Initialize DataTable with server-side processing enabled
+    var t = $('#example').DataTable({
+        paging: true,           // Enable pagination
+        pageLength: limit,      // Show 500 records per page
+        serverSide: true,       // Enable server-side processing
+        processing: true,       // Show processing indicator
+        ajax: function(data, callback, settings) {
+            // Calculate the current offset based on the requested page
+            var requestedOffset = data.start;
+
+            // Check if data is already loaded for the requested page
+            if (requestedOffset < offset) {
+                // Slice the already loaded data to serve the request
+                callback({
+                    draw: data.draw,
+                    recordsTotal: t.data().length, // Total records loaded
+                    recordsFiltered: t.data().length, // Filtered records
+                    data: t.rows().data().toArray().slice(requestedOffset, requestedOffset + limit)
+                });
+                return;
+            }
+
+            // If no more records are available, do not fetch
+            if (!hasMoreEntries) {
+                callback({
+                    draw: data.draw,
+                    recordsTotal: t.data().length, // Total records loaded
+                    recordsFiltered: t.data().length, // Filtered records
+                    data: []
+                });
+                return;
+            }
+
+            // Fetch the next batch of records from the server
+            $.ajax({
+                url: '/yourAPIEndpoint', // Your API endpoint for fetching data
+                type: 'GET',
+                data: {
+                    limit: limit,   // Number of records to fetch
+                    offset: offset  // Starting position for fetching
+                },
+                success: function(response) {
+                    // Assume your API response includes total records count
+                    var totalRecords = response.totalRecords; // Total records returned by your controller
+                    hasMoreEntries = response.hasMoreEntries; // Check if more data is available
+
+                    // Add the new rows to the DataTable without clearing previous rows
+                    response.data.forEach(function(item) {
+                        t.row.add(item);
+                    });
+
+                    // Update the total number of records loaded
+                    offset += response.data.length;
+
+                    // Call the callback to update the DataTable with new data
+                    callback({
+                        draw: data.draw,
+                        recordsTotal: totalRecords, // Total number of records from the server
+                        recordsFiltered: totalRecords, // Filtered records, usually the same as total
+                        data: response.data
+                    });
+                },
+                error: function() {
+                    alert('Error fetching data');
+                }
+            });
+        },
+        columns: [
+            { data: 'EXECUTION_ID' },          // Data column 1
+            { data: 'TECHNICAL_API_NAME' },    // Data column 2
+            { data: 'MAJOR_VERSION' },         // Data column 3
+            { data: 'APE_API_ID' },            // Data column 4
+            { data: 'DEMAND_TYPE' }            // Data column 5
+        ]
+    });
+
+    // Reset the offset when searching or changing the number of records per page
+    $('#example').on('search.dt length.dt', function() {
+        offset = 0;
+        hasMoreEntries = true; // Reset the hasMoreEntries flag
+    });
+});
+
