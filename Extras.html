@@ -1,39 +1,45 @@
 $(document).ready(function() {
-    var limit = 50;
-    var offset = 0;
-    var hasMoreEntries = true;
-    
-    // Initialize DataTable
+    var limit = 50;          // Number of records to fetch per request
+    var offset = 0;          // Offset to fetch data from
+    var hasMoreEntries = true; // Flag to check if more entries are available
+
+    // Initialize DataTable with client-side processing enabled
     var t = $('#example').DataTable({
-        paging: true,
-        pageLength: limit, // Show 50 records per page
-        serverSide: false  // Use client-side pagination for already loaded records
+        paging: true,         // Enable pagination
+        pageLength: limit,    // Show 50 records per page
+        serverSide: false,    // Client-side pagination
+        processing: true,     // Show processing indicator
+        data: [],             // Start with empty data
+        columns: [
+            { data: 'EXECUTION_ID' },          // Data column 1
+            { data: 'TECHNICAL_API_NAME' },    // Data column 2
+            { data: 'MAJOR_VERSION' },         // Data column 3
+            { data: 'APE_API_ID' },            // Data column 4
+            { data: 'DEMAND_TYPE' }            // Data column 5
+        ]
     });
 
-    // Function to load data
+    // Function to load data from the server
     function loadData() {
-        if (!hasMoreEntries) return; // Exit if there are no more records
+        if (!hasMoreEntries) return; // Exit if no more records are available
 
         $.ajax({
-            url: '/yourAPIEndpoint',
+            url: '/yourAPIEndpoint', // Your API endpoint for fetching data
             type: 'GET',
             data: {
-                limit: limit,
-                offset: offset
+                limit: limit,  // Number of records to fetch
+                offset: offset // Starting position for fetching
             },
             success: function(response) {
-                hasMoreEntries = response.hasMoreEntries;
+                hasMoreEntries = response.hasMoreEntries; // Check if more data is available
 
-                // Append new rows to the DataTable without clearing existing data
-                response.data.forEach(function(item, index) {
-                    t.row.add([
-                        item.executionId,
-                        item.technicalApiName,
-                        item.majorVersion,
-                        item.apeApiId,
-                        item.demandType
-                    ]).draw(false);  // false to prevent full re-draw, appends to the current rows
+                // Add the new rows to the DataTable without clearing previous rows
+                response.data.forEach(function(item) {
+                    t.row.add(item);
                 });
+
+                // Draw the table with the new data
+                t.draw(false);
 
                 // Increase the offset for the next batch
                 offset += limit;
@@ -47,13 +53,13 @@ $(document).ready(function() {
     // Load the initial batch of 50 records
     loadData();
 
-    // Handle "Next" button click when on the last page
-    $('#example_paginate').on('click', '.paginate_button.next', function() {
+    // Detect when user reaches the last page and fetch the next set of records
+    $('#example').on('page.dt', function() {
         var info = t.page.info();
-        
-        // Check if we're on the last page and more entries are available
-        if (info.page === (info.pages - 1) && hasMoreEntries) {
-            loadData();  // Fetch and append the next batch of records
+
+        // If the user is on the last page and there are more records to fetch
+        if (info.page === info.pages - 1 && hasMoreEntries) {
+            loadData(); // Fetch and append the next batch of records
         }
     });
 });
