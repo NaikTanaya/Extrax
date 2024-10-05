@@ -164,18 +164,18 @@ $(document).ready(function() {
                 
 
 $(document).ready(function() {
-    var limit = 50;           // Number of records to fetch per request
-    var offset = 0;           // Offset to fetch data from
+    var limit = 50;          // Number of records to fetch per request
+    var offset = 0;          // Offset to fetch data from
     var hasMoreEntries = true; // Flag to check if more entries are available
-    var isFetching = false;   // Flag to prevent duplicate fetch requests
+    var isFetching = false;  // Prevent multiple fetches at the same time
 
-    // Initialize DataTable with client-side processing
+    // Initialize DataTable with client-side processing enabled
     var t = $('#example').DataTable({
-        paging: true,          // Enable pagination
-        pageLength: limit,     // Show 50 records per page
-        serverSide: false,     // Client-side pagination
-        processing: true,      // Show processing indicator
-        data: [],              // Start with an empty data set
+        paging: true,         // Enable pagination
+        pageLength: limit,    // Show 50 records per page
+        serverSide: false,    // Client-side pagination
+        processing: true,     // Show processing indicator
+        data: [],             // Start with empty data
         columns: [
             { data: 'EXECUTION_ID' },          // Data column 1
             { data: 'TECHNICAL_API_NAME' },    // Data column 2
@@ -187,39 +187,50 @@ $(document).ready(function() {
 
     // Function to load data from the server
     function loadData() {
-        if (!hasMoreEntries || isFetching) return; // Exit if no more records or already fetching
+        if (!hasMoreEntries || isFetching) return; // Exit if no more records or already fetching data
 
-        isFetching = true; // Set fetching flag to prevent duplicate requests
+        isFetching = true;
 
-        // Show loading spinner or overlay
-        $('#loadingSpinner').show();
+        console.log("Fetching data with limit:", limit, "and offset:", offset);
 
         $.ajax({
-            url: '/yourAPIEndpoint', // Replace with your actual API endpoint
+            url: '/yourAPIEndpoint', // Your API endpoint for fetching data
             type: 'GET',
             data: {
-                limit: limit,  // Number of records to fetch
-                offset: offset // Starting position for fetching
+                limit: limit,  // Number of records to fetch (50)
+                offset: offset // Current offset
             },
             success: function(response) {
-                hasMoreEntries = response.hasMoreEntries; // Check if more data is available
+                var fetchedRecords = response.data.length;
+                var totalRecords = response.totalRecords; // Use totalRecords from the response
 
-                if (response.data.length > 0) {
-                    // Add new data to the DataTable in bulk
-                    t.rows.add(response.data).draw(false);
+                console.log("Total records available:", totalRecords);
+                console.log("Records fetched in this batch:", fetchedRecords);
+                console.log("Current offset:", offset);
 
-                    // Increment the offset for the next batch
-                    offset += response.data.length;
+                // Add the new records to the DataTable
+                if (fetchedRecords > 0) {
+                    t.rows.add(response.data).draw(false); // Append new records and redraw without resetting pagination
                 }
 
-                // Hide loading spinner or overlay
-                $('#loadingSpinner').hide();
+                // Update DataTable's internal records total count
+                var pageInfo = t.page.info();
+                pageInfo.recordsTotal = totalRecords; // Update total number of records
+                pageInfo.recordsFiltered = totalRecords; // Update filtered count
+
+                // Increase the offset for the next batch
+                offset += fetchedRecords;
+
+                // Check if we've loaded all the available records
+                hasMoreEntries = offset < totalRecords; // Update the flag based on totalRecords
+
+                console.log("Updated hasMoreEntries:", hasMoreEntries);
             },
             error: function() {
-                alert('Error fetching data. Please try again.');
+                alert('Error fetching data');
             },
             complete: function() {
-                isFetching = false; // Reset fetching flag once request is complete
+                isFetching = false; // Reset fetching flag after the request completes
             }
         });
     }
@@ -227,13 +238,16 @@ $(document).ready(function() {
     // Load the initial batch of 50 records
     loadData();
 
-    // Detect when the user reaches the last page and fetch the next set of records
+    // Detect when user reaches the last page and fetch the next set of records
     $('#example').on('page.dt', function() {
-        var info = t.page.info();
+        var info = t.page.info(); // Get pagination information
 
-        // If the user is on the last page and more records are available
+        console.log("Page info:", info);
+
+        // Check if the user is on the last page and if there are more records to fetch
         if (info.page === info.pages - 1 && hasMoreEntries) {
-            loadData(); // Fetch and append the next batch of records
+            loadData(); // Fetch the next batch of records
         }
     });
 });
+
