@@ -261,94 +261,78 @@ $(document).ready(function() {
 
 
 -------------------------------------
-$(document).ready(function() {
-    var limit = 50;           // Number of records to fetch per request
-    var offset = 0;           // Batch number of the request (starts from 0)
-    var hasMoreEntries = true; // Flag to check if more entries are available
-    var isFetching = false;   // Flag to prevent multiple fetches at the same time
+       var limit = 50;           // Default number of records to fetch per request
+            var offset = 0;           // Offset for fetching data
+            var hasMoreEntries = true; // Flag to check if more entries are available
+            var isFetching = false;   // Flag to prevent multiple fetches at the same time
 
-    // Initialize DataTable with client-side processing enabled
-    var t = $('#example').DataTable({
-        paging: true,          // Enable pagination
-        pageLength: limit,     // Show 50 records per page
-        serverSide: false,     // Client-side pagination
-        processing: true,      // Show processing indicator
-        data: [],              // Start with empty data
-        columns: [
-            { data: 'EXECUTION_ID' },          // Data column 1
-            { data: 'TECHNICAL_API_NAME' },    // Data column 2
-            { data: 'MAJOR_VERSION' },         // Data column 3
-            { data: 'APE_API_ID' },            // Data column 4
-            { data: 'DEMAND_TYPE' }            // Data column 5
-        ]
-    });
+            // Initialize DataTable
+            var t = $('#example').DataTable({
+                paging: true,          // Enable pagination
+                pageLength: limit,
+                processing: true,
+                data: [],
+                columns: [
+                    { data: 'EXECUTION_ID' },
+                    { data: 'TECHNICAL_API_NAME' },
+                    { data: 'MAJOR_VERSION' },
+                    { data: 'APE_API_ID' },
+                    { data: 'DEMAND_TYPE' }
+                ]
+            });
 
-    // Function to load data from the server
-    function loadData() {
-        if (!hasMoreEntries || isFetching) return; // Exit if no more records are available or data is being fetched
+            // Function to load data from the server
+            function loadData() {
+                if (!hasMoreEntries || isFetching) return;
 
-        isFetching = true; // Set fetching flag
+                isFetching = true;
 
-        console.log(`Fetching data with limit: ${limit}, offset: ${offset * limit}`); // Debug log
+                $.ajax({
+                    url: '/yourAPIEndpoint', // Your API endpoint for fetching data
+                    type: 'GET',
+                    data: {
+                        limit: limit,           // Number of records to fetch
+                        offset: offset * limit  // Starting position for fetching
+                    },
+                    success: function(response) {
+                        if (!response.data || !Array.isArray(response.data)) {
+                            console.error('Invalid data format received');
+                            isFetching = false;
+                            return;
+                        }
 
-        $.ajax({
-            url: '/yourAPIEndpoint', // Your API endpoint for fetching data
-            type: 'GET',
-            data: {
-                limit: limit,           // Number of records to fetch
-                offset: offset * limit  // Starting position for fetching
-            },
-            success: function(response) {
-                console.log('Response received:', response); // Debug log
+                        if (response.data.length < limit) {
+                            hasMoreEntries = false; // Disable loading if no more records
+                        }
 
-                // Validate server response
-                if (!response.data || !Array.isArray(response.data)) {
-                    console.error('Invalid data format received');
-                    isFetching = false; // Reset fetching flag
-                    return;
-                }
+                        response.data.forEach(function(item) {
+                            t.row.add(item);
+                        });
 
-                // If the number of records returned is less than the limit, it means there are no more records.
-                if (response.data.length < limit) {
-                    hasMoreEntries = false;
-                }
+                        t.draw(false);
+                        offset++; // Increase offset for next fetch
 
-                // Add the new rows to the DataTable without clearing previous rows
-                response.data.forEach(function(item) {
-                    t.row.add(item);
+                        isFetching = false; // Reset fetching flag
+                    },
+                    error: function() {
+                        alert('Error fetching data');
+                        isFetching = false;
+                    }
                 });
-
-                // Draw the table with the new data
-                t.draw(false);
-
-                // Increase the offset for the next batch
-                offset += 1;
-
-                console.log(`Offset updated to batch number: ${offset}`); // Debug log
-
-                isFetching = false; // Reset fetching flag
-            },
-            error: function() {
-                alert('Error fetching data');
-                isFetching = false; // Reset fetching flag
             }
-        });
-    }
 
-    // Load the initial batch of records
-    loadData();
+            // Initial load
+            loadData();
 
-    // Detect when user reaches the last page and fetch the next set of records
-    $('#example').on('page.dt', function() {
-        var info = t.page.info();
-
-        // If the user is on the last page and there are more records to fetch
-        if (info.page === info.pages - 1 && hasMoreEntries && !isFetching) {
-            console.log('User reached the last page. Loading more data.'); // Debug log
-            loadData(); // Fetch and append the next batch of records
-        }
-    });
-});
+            // Listen for changes to page length selection
+            $('#pageLengthSelect').on('change', function() {
+                limit = $(this).val(); // Update limit based on user selection
+                t.page.len(limit).draw(); // Update DataTable display
+                offset = 0; // Reset offset
+                hasMoreEntries = true; // Reset flag for new fetch
+                t.clear().draw(); // Clear current data in DataTable
+                loadData(); // Reload data
+            });
 
 
 
