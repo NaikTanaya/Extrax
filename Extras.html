@@ -157,3 +157,86 @@ $(document).ready(function() {
     });
 });
 
+
+
+$(document).ready(function() {
+    var limit = 50;           // Number of records to fetch per request
+    var offset = 0;           // Offset to start fetching data from
+    var loadedData = [];      // Array to hold the currently loaded data
+    var totalRecords = 0;     // Total records count
+    var hasMoreEntries = true; // Flag to determine if more entries exist on the server
+
+    // Initialize the DataTable
+    var t = $('#example').DataTable({
+        paging: true,         // Enable pagination
+        pageLength: limit,    // Show 50 records per page
+        serverSide: false,    // Disable server-side processing (we manage batches manually)
+        processing: true,     // Show processing indicator
+        data: loadedData,     // Use the loaded data array as the data source
+        columns: [
+            { data: 'EXECUTION_ID' },       // Column 1
+            { data: 'TECHNICAL_API_NAME' }, // Column 2
+            { data: 'MAJOR_VERSION' },      // Column 3
+            { data: 'APE_API_ID' },         // Column 4
+            { data: 'DEMAND_TYPE' }         // Column 5
+        ]
+    });
+
+    // Function to fetch new data from the server
+    function fetchNewData(callback) {
+        if (!hasMoreEntries) {
+            callback(); // No more data to fetch
+            return;
+        }
+
+        $.ajax({
+            url: '/execution-status', // Your server API
+            type: 'GET',
+            data: {
+                limit: limit,   // Number of records to fetch
+                offset: offset  // Starting position for the current page
+            },
+            success: function(response) {
+                // Get the new batch of data from the server
+                var newData = response.data;
+                totalRecords = response.totalRecords; // Update total records count
+                hasMoreEntries = response.hasMoreEntries; // Determine if more records are available
+
+                // Increment the offset for the next fetch
+                offset += newData.length;
+
+                // Add the new data to the already loaded data
+                loadedData = loadedData.concat(newData);
+
+                // Reload DataTable with the updated data
+                t.clear().rows.add(loadedData).draw();
+
+                // Call the callback once data is loaded
+                callback();
+            },
+            error: function() {
+                alert('Error fetching data');
+            }
+        });
+    }
+
+    // Load the first set of data on page load
+    fetchNewData(function() {
+        t.draw();
+    });
+
+    // Listen for the "Next" page click event in DataTables
+    $('#example').on('page.dt', function() {
+        var info = t.page.info();
+
+        // Check if the user has reached the last page of the currently loaded data
+        if (info.page === info.pages - 1 && hasMoreEntries) {
+            // Fetch the next set of data when the user clicks "Next" on the last page
+            fetchNewData(function() {
+                // After new data is fetched, stay on the same page to load the new records
+                t.page(info.page).draw(false);
+            });
+        }
+    });
+});
+
