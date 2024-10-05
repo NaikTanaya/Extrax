@@ -159,6 +159,10 @@ $(document).ready(function() {
 
 
 
+
+
+                
+
 $(document).ready(function() {
     var limit = 50;           // Number of records to fetch per request
     var offset = 0;           // Offset to start fetching data from
@@ -168,18 +172,29 @@ $(document).ready(function() {
 
     // Initialize the DataTable
     var t = $('#example').DataTable({
-        paging: true,         // Enable pagination
-        pageLength: limit,    // Show 50 records per page
-        serverSide: false,    // Disable server-side processing (we manage batches manually)
-        processing: true,     // Show processing indicator
-        data: loadedData,     // Use the loaded data array as the data source
+        paging: true,          // Enable pagination
+        pageLength: limit,     // Show 50 records per page
+        serverSide: false,     // Disable server-side processing (we manage batches manually)
+        processing: true,      // Show processing indicator
+        data: loadedData,      // Use the loaded data array as the data source
         columns: [
             { data: 'EXECUTION_ID' },       // Column 1
             { data: 'TECHNICAL_API_NAME' }, // Column 2
             { data: 'MAJOR_VERSION' },      // Column 3
             { data: 'APE_API_ID' },         // Column 4
             { data: 'DEMAND_TYPE' }         // Column 5
-        ]
+        ],
+        drawCallback: function(settings) {
+            // Check if the last page is reached
+            var info = t.page.info();
+            if (info.page === info.pages - 1 && hasMoreEntries) {
+                // If the user is on the last page, trigger data fetching for the next set
+                fetchNewData(function() {
+                    // After fetching new data, stay on the same page
+                    t.page(info.page).draw(false);
+                });
+            }
+        }
     });
 
     // Function to fetch new data from the server
@@ -197,19 +212,22 @@ $(document).ready(function() {
                 offset: offset  // Starting position for the current page
             },
             success: function(response) {
-                // Get the new batch of data from the server
                 var newData = response.data;
                 totalRecords = response.totalRecords; // Update total records count
-                hasMoreEntries = response.hasMoreEntries; // Determine if more records are available
+                hasMoreEntries = response.hasMoreEntries; // Check if more records exist
 
                 // Increment the offset for the next fetch
                 offset += newData.length;
 
-                // Add the new data to the already loaded data
+                // Add new data to the already loaded data
                 loadedData = loadedData.concat(newData);
 
                 // Reload DataTable with the updated data
                 t.clear().rows.add(loadedData).draw();
+
+                // Update DataTables with the total number of records
+                t.settings()[0]._iRecordsTotal = totalRecords;
+                t.settings()[0]._iRecordsDisplay = totalRecords;
 
                 // Call the callback once data is loaded
                 callback();
@@ -225,7 +243,7 @@ $(document).ready(function() {
         t.draw();
     });
 
-    // Listen for the "Next" page click event in DataTables
+    // Handle next page clicks
     $('#example').on('page.dt', function() {
         var info = t.page.info();
 
@@ -233,10 +251,11 @@ $(document).ready(function() {
         if (info.page === info.pages - 1 && hasMoreEntries) {
             // Fetch the next set of data when the user clicks "Next" on the last page
             fetchNewData(function() {
-                // After new data is fetched, stay on the same page to load the new records
+                // After fetching new data, stay on the same page
                 t.page(info.page).draw(false);
             });
         }
     });
 });
+
 
