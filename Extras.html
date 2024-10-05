@@ -254,7 +254,7 @@ $(document).ready(function() {
         }
     });
 });
-
+//102 records only getting loaded
 
 
 
@@ -262,13 +262,18 @@ $(document).ready(function() {
 
 -------------------------------------
 $(document).ready(function() {
+    var limit = 50;           // Number of records to fetch per request
+    var offset = 0;           // Batch number of the request (starts from 0)
+    var hasMoreEntries = true; // Flag to check if more entries are available
+    var isFetching = false;   // Flag to prevent multiple fetches at the same time
+
     // Initialize DataTable with client-side processing enabled
     var t = $('#example').DataTable({
-        paging: true,         // Enable pagination
-        pageLength: 50,       // Show 50 records per page initially
-        serverSide: false,    // Client-side pagination
-        processing: true,     // Show processing indicator
-        data: [],             // Start with empty data
+        paging: true,          // Enable pagination
+        pageLength: limit,     // Show 50 records per page
+        serverSide: false,     // Client-side pagination
+        processing: true,      // Show processing indicator
+        data: [],              // Start with empty data
         columns: [
             { data: 'EXECUTION_ID' },          // Data column 1
             { data: 'TECHNICAL_API_NAME' },    // Data column 2
@@ -278,13 +283,20 @@ $(document).ready(function() {
         ]
     });
 
-    // Function to load all data from the server
-    function loadAllData() {
+    // Function to load data from the server
+    function loadData() {
+        if (!hasMoreEntries || isFetching) return; // Exit if no more records are available or data is being fetched
+
+        isFetching = true; // Set fetching flag
+
+        console.log(`Fetching data with limit: ${limit}, offset: ${offset * limit}`); // Debug log
+
         $.ajax({
-            url: '/yourAPIEndpoint', // Your API endpoint for fetching all data
+            url: '/yourAPIEndpoint', // Your API endpoint for fetching data
             type: 'GET',
             data: {
-                // No limit or offset specified
+                limit: limit,           // Number of records to fetch
+                offset: offset * limit  // Starting position for fetching
             },
             success: function(response) {
                 console.log('Response received:', response); // Debug log
@@ -292,25 +304,51 @@ $(document).ready(function() {
                 // Validate server response
                 if (!response.data || !Array.isArray(response.data)) {
                     console.error('Invalid data format received');
+                    isFetching = false; // Reset fetching flag
                     return;
                 }
 
-                // Add all rows to the DataTable
+                // If the number of records returned is less than the limit, it means there are no more records.
+                if (response.data.length < limit) {
+                    hasMoreEntries = false;
+                }
+
+                // Add the new rows to the DataTable without clearing previous rows
                 response.data.forEach(function(item) {
                     t.row.add(item);
                 });
 
                 // Draw the table with the new data
                 t.draw(false);
+
+                // Increase the offset for the next batch
+                offset += 1;
+
+                console.log(`Offset updated to batch number: ${offset}`); // Debug log
+
+                isFetching = false; // Reset fetching flag
             },
             error: function() {
                 alert('Error fetching data');
+                isFetching = false; // Reset fetching flag
             }
         });
     }
 
-    // Load all records
-    loadAllData();
+    // Load the initial batch of records
+    loadData();
+
+    // Detect when user reaches the last page and fetch the next set of records
+    $('#example').on('page.dt', function() {
+        var info = t.page.info();
+
+        // If the user is on the last page and there are more records to fetch
+        if (info.page === info.pages - 1 && hasMoreEntries && !isFetching) {
+            console.log('User reached the last page. Loading more data.'); // Debug log
+            loadData(); // Fetch and append the next batch of records
+        }
+    });
 });
+
 
 
