@@ -165,9 +165,10 @@ $(document).ready(function() {
 
 $(document).ready(function() {
     var limit = 50;          // Number of records to fetch per request
-    var offset = 0;          // Offset to fetch data from
+    var offset = 0;          // Page number offset (starts from 0)
     var hasMoreEntries = true; // Flag to check if more entries are available
     var isFetching = false;  // Prevent multiple fetches at the same time
+    var totalRecords = 0;    // Variable to track total records available on the server
 
     // Initialize DataTable with client-side processing enabled
     var t = $('#example').DataTable({
@@ -191,40 +192,41 @@ $(document).ready(function() {
 
         isFetching = true;
 
-        console.log("Fetching data with limit:", limit, "and offset:", offset);
+        console.log("Fetching data with limit:", limit, "and offset (page number):", offset);
 
         $.ajax({
             url: '/yourAPIEndpoint', // Your API endpoint for fetching data
             type: 'GET',
             data: {
                 limit: limit,  // Number of records to fetch (50)
-                offset: offset // Current offset
+                offset: offset // Current page number
             },
             success: function(response) {
                 var fetchedRecords = response.data.length;
-                var totalRecords = response.totalRecords; // Use totalRecords from the response
+
+                // Assuming response.totalRecords holds the total records on the server
+                if (totalRecords === 0) {
+                    totalRecords = response.totalRecords; // Set the totalRecords from the server response
+                }
 
                 console.log("Total records available:", totalRecords);
                 console.log("Records fetched in this batch:", fetchedRecords);
-                console.log("Current offset:", offset);
+                console.log("Current page offset (before increment):", offset);
 
                 // Add the new records to the DataTable
                 if (fetchedRecords > 0) {
                     t.rows.add(response.data).draw(false); // Append new records and redraw without resetting pagination
                 }
 
-                // Update DataTable's internal records total count
-                var pageInfo = t.page.info();
-                pageInfo.recordsTotal = totalRecords; // Update total number of records
-                pageInfo.recordsFiltered = totalRecords; // Update filtered count
+                // Increment the offset by 1 for the next page
+                offset++;
 
-                // Increase the offset for the next batch
-                offset += fetchedRecords;
+                console.log("Updated page offset (after increment):", offset);
 
                 // Check if we've loaded all the available records
-                hasMoreEntries = offset < totalRecords; // Update the flag based on totalRecords
+                hasMoreEntries = offset * limit < totalRecords; // Update the flag based on totalRecords
 
-                console.log("Updated hasMoreEntries:", hasMoreEntries);
+                console.log("Has more entries:", hasMoreEntries);
             },
             error: function() {
                 alert('Error fetching data');
@@ -235,10 +237,10 @@ $(document).ready(function() {
         });
     }
 
-    // Load the initial batch of 50 records
+    // Load the initial batch of 50 records (for the first page)
     loadData();
 
-    // Detect when user reaches the last page and fetch the next set of records
+    // Detect when the user reaches the last page and fetch the next set of records
     $('#example').on('page.dt', function() {
         var info = t.page.info(); // Get pagination information
 
@@ -246,8 +248,14 @@ $(document).ready(function() {
 
         // Check if the user is on the last page and if there are more records to fetch
         if (info.page === info.pages - 1 && hasMoreEntries) {
-            loadData(); // Fetch the next batch of records
+            loadData(); // Fetch the next batch of records (next page)
         }
+    });
+
+    // Reset offset when the table is redrawn or filtered
+    $('#example').on('search.dt length.dt', function() {
+        offset = 0; // Reset to the first page
+        hasMoreEntries = true; // Reset to assume there are more entries
     });
 });
 
