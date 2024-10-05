@@ -255,3 +255,62 @@ $(document).ready(function() {
     });
 });
 
+
+
+
+
+
+-------------------------------------
+$(document).ready(function() {
+    // Initialize DataTable with client-side processing enabled
+    var t = $('#example').DataTable({
+        paging: true,         // Enable pagination
+        pageLength: 50,       // Show 50 records per page initially
+        serverSide: false,    // Client-side pagination
+        processing: true,     // Show processing indicator
+        data: [],             // Start with empty data
+        columns: [
+            { data: 'EXECUTION_ID' },          // Data column 1
+            { data: 'TECHNICAL_API_NAME' },    // Data column 2
+            { data: 'MAJOR_VERSION' },         // Data column 3
+            { data: 'APE_API_ID' },            // Data column 4
+            { data: 'DEMAND_TYPE' }            // Data column 5
+        ]
+    });
+
+    // Function to load all data from the server
+    function loadAllData() {
+        $.ajax({
+            url: '/yourAPIEndpoint', // Your API endpoint for fetching all data
+            type: 'GET',
+            data: {
+                // No limit or offset specified
+            },
+            success: function(response) {
+                console.log('Response received:', response); // Debug log
+
+                // Validate server response
+                if (!response.data || !Array.isArray(response.data)) {
+                    console.error('Invalid data format received');
+                    return;
+                }
+
+                // Add all rows to the DataTable
+                response.data.forEach(function(item) {
+                    t.row.add(item);
+                });
+
+                // Draw the table with the new data
+                t.draw(false);
+            },
+            error: function() {
+                alert('Error fetching data');
+            }
+        });
+    }
+
+    // Load all records
+    loadAllData();
+});
+
+
