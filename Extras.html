@@ -191,6 +191,8 @@ $(document).ready(function() {
 
         isFetching = true; // Set fetching flag
 
+        console.log(`Fetching data with limit: ${limit}, offset: ${offset}`); // Debug log
+
         $.ajax({
             url: '/yourAPIEndpoint', // Your API endpoint for fetching data
             type: 'GET',
@@ -199,6 +201,15 @@ $(document).ready(function() {
                 offset: offset // Starting position for fetching
             },
             success: function(response) {
+                console.log('Response received:', response); // Debug log
+
+                // Validate server response
+                if (!response.data || !Array.isArray(response.data)) {
+                    console.error('Invalid data format received');
+                    isFetching = false;
+                    return;
+                }
+
                 hasMoreEntries = response.hasMoreEntries; // Check if more data is available
 
                 // Add the new rows to the DataTable without clearing previous rows
@@ -210,7 +221,9 @@ $(document).ready(function() {
                 t.draw(false);
 
                 // Increase the offset for the next batch
-                offset += limit;
+                offset += response.data.length;
+
+                console.log(`Offset updated to: ${offset}`); // Debug log
 
                 isFetching = false; // Reset fetching flag
             },
@@ -230,10 +243,8 @@ $(document).ready(function() {
 
         // If the user is on the last page and there are more records to fetch
         if (info.page === info.pages - 1 && hasMoreEntries && !isFetching) {
+            console.log('User reached the last page. Loading more data.'); // Debug log
             loadData(); // Fetch and append the next batch of records
         }
     });
 });
-
-
-
