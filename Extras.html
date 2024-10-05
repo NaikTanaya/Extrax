@@ -164,8 +164,9 @@ $(document).ready(function() {
                 
 
 $(document).ready(function() {
+$(document).ready(function() {
     var limit = 50;           // Number of records to fetch per request
-    var offset = 0;           // Offset to fetch data from
+    var offset = 0;           // Batch number of the request (starts from 0)
     var hasMoreEntries = true; // Flag to check if more entries are available
     var isFetching = false;   // Flag to prevent multiple fetches at the same time
 
@@ -191,14 +192,16 @@ $(document).ready(function() {
 
         isFetching = true; // Set fetching flag
 
-        console.log(`Fetching data with limit: ${limit}, offset: ${offset}`); // Debug log
+        var currentOffset = offset * limit; // Calculate the actual offset for the current batch
+
+        console.log(`Fetching data with limit: ${limit}, offset: ${currentOffset}`); // Debug log
 
         $.ajax({
             url: '/yourAPIEndpoint', // Your API endpoint for fetching data
             type: 'GET',
             data: {
-                limit: limit,  // Number of records to fetch
-                offset: offset // Starting position for fetching
+                limit: limit,        // Number of records to fetch
+                offset: currentOffset // Starting position for fetching
             },
             success: function(response) {
                 console.log('Response received:', response); // Debug log
@@ -210,7 +213,10 @@ $(document).ready(function() {
                     return;
                 }
 
-                hasMoreEntries = response.hasMoreEntries; // Check if more data is available
+                // If the number of records returned is less than the limit, it means there are no more records.
+                if (response.data.length < limit) {
+                    hasMoreEntries = false;
+                }
 
                 // Add the new rows to the DataTable without clearing previous rows
                 response.data.forEach(function(item) {
@@ -221,9 +227,9 @@ $(document).ready(function() {
                 t.draw(false);
 
                 // Increase the offset for the next batch
-                offset += response.data.length;
+                offset += 1;
 
-                console.log(`Offset updated to: ${offset}`); // Debug log
+                console.log(`Offset updated to batch number: ${offset}`); // Debug log
 
                 isFetching = false; // Reset fetching flag
             },
@@ -248,3 +254,4 @@ $(document).ready(function() {
         }
     });
 });
+
