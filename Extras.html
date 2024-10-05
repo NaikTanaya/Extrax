@@ -165,95 +165,75 @@ $(document).ready(function() {
 
 $(document).ready(function() {
     var limit = 50;           // Number of records to fetch per request
-    var offset = 0;           // Offset to start fetching data from
-    var loadedData = [];      // Array to hold the currently loaded data
-    var totalRecords = 0;     // Total records count
-    var hasMoreEntries = true; // Flag to determine if more entries exist on the server
+    var offset = 0;           // Offset to fetch data from
+    var hasMoreEntries = true; // Flag to check if more entries are available
+    var isFetching = false;   // Flag to prevent duplicate fetch requests
 
-    // Initialize the DataTable
+    // Initialize DataTable with client-side processing
     var t = $('#example').DataTable({
         paging: true,          // Enable pagination
         pageLength: limit,     // Show 50 records per page
-        serverSide: false,     // Disable server-side processing (we manage batches manually)
+        serverSide: false,     // Client-side pagination
         processing: true,      // Show processing indicator
-        data: loadedData,      // Use the loaded data array as the data source
+        data: [],              // Start with an empty data set
         columns: [
-            { data: 'EXECUTION_ID' },       // Column 1
-            { data: 'TECHNICAL_API_NAME' }, // Column 2
-            { data: 'MAJOR_VERSION' },      // Column 3
-            { data: 'APE_API_ID' },         // Column 4
-            { data: 'DEMAND_TYPE' }         // Column 5
-        ],
-        drawCallback: function(settings) {
-            // Check if the last page is reached
-            var info = t.page.info();
-            if (info.page === info.pages - 1 && hasMoreEntries) {
-                // If the user is on the last page, trigger data fetching for the next set
-                fetchNewData(function() {
-                    // After fetching new data, stay on the same page
-                    t.page(info.page).draw(false);
-                });
-            }
-        }
+            { data: 'EXECUTION_ID' },          // Data column 1
+            { data: 'TECHNICAL_API_NAME' },    // Data column 2
+            { data: 'MAJOR_VERSION' },         // Data column 3
+            { data: 'APE_API_ID' },            // Data column 4
+            { data: 'DEMAND_TYPE' }            // Data column 5
+        ]
     });
 
-    // Function to fetch new data from the server
-    function fetchNewData(callback) {
-        if (!hasMoreEntries) {
-            callback(); // No more data to fetch
-            return;
-        }
+    // Function to load data from the server
+    function loadData() {
+        if (!hasMoreEntries || isFetching) return; // Exit if no more records or already fetching
+
+        isFetching = true; // Set fetching flag to prevent duplicate requests
+
+        // Show loading spinner or overlay
+        $('#loadingSpinner').show();
 
         $.ajax({
-            url: '/execution-status', // Your server API
+            url: '/yourAPIEndpoint', // Replace with your actual API endpoint
             type: 'GET',
             data: {
-                limit: limit,   // Number of records to fetch
-                offset: offset  // Starting position for the current page
+                limit: limit,  // Number of records to fetch
+                offset: offset // Starting position for fetching
             },
             success: function(response) {
-                var newData = response.data;
-                totalRecords = response.totalRecords; // Update total records count
-                hasMoreEntries = response.hasMoreEntries; // Check if more records exist
+                hasMoreEntries = response.hasMoreEntries; // Check if more data is available
 
-                // Increment the offset for the next fetch
-                offset += newData.length;
+                if (response.data.length > 0) {
+                    // Add new data to the DataTable in bulk
+                    t.rows.add(response.data).draw(false);
 
-                // Add new data to the already loaded data
-                loadedData = loadedData.concat(newData);
+                    // Increment the offset for the next batch
+                    offset += response.data.length;
+                }
 
-                // Reload DataTable with the updated data
-                t.clear().rows.add(loadedData).draw();
-
-                // Update DataTables with the total number of records
-                t.settings()[0]._iRecordsTotal = totalRecords;
-                t.settings()[0]._iRecordsDisplay = totalRecords;
-
-                // Call the callback once data is loaded
-                callback();
+                // Hide loading spinner or overlay
+                $('#loadingSpinner').hide();
             },
             error: function() {
-                alert('Error fetching data');
+                alert('Error fetching data. Please try again.');
+            },
+            complete: function() {
+                isFetching = false; // Reset fetching flag once request is complete
             }
         });
     }
 
-    // Initial data fetch on page load
-    fetchNewData(function() {
-        t.draw();
-    });
+    // Load the initial batch of 50 records
+    loadData();
 
-    // Handle next page clicks
+    // Detect when the user reaches the last page and fetch the next set of records
     $('#example').on('page.dt', function() {
         var info = t.page.info();
 
-        // Check if the user has reached the last page of the currently loaded data
+        // If the user is on the last page and more records are available
         if (info.page === info.pages - 1 && hasMoreEntries) {
-            // Fetch the next set of data when the user clicks "Next" on the last page
-            fetchNewData(function() {
-                // After fetching new data, stay on the same page
-                t.page(info.page).draw(false);
-            });
+            loadData(); // Fetch and append the next batch of records
         }
     });
 });
