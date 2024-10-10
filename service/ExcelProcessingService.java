@@ -1,8 +1,8 @@
 package com.example.api.service;
 
 import com.example.api.model.ApiDefinition;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import org.apache.poi.ss.usermodel.*;
+import org.yaml.snakeyaml.Yaml;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,7 +13,7 @@ import java.util.List;
 @Service
 public class ExcelProcessingService {
 
-    public List<ApiDefinition> parseExcelFile(MultipartFile file) throws IOException {
+    public List<ApiDefinition> parseExcelFile(MMultipartFile file) throws IOException {
         List<ApiDefinition> apiDefinitions = new ArrayList<>();
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
@@ -40,9 +40,9 @@ public class ExcelProcessingService {
         return apiDefinitions;
     }
 
-    public String convertToYaml(List<ApiDefinition> apiDefinitions) throws IOException {
-        YAMLMapper yamlMapper = new YAMLMapper();
-        return yamlMapper.writeValueAsString(apiDefinitions);
+    public String convertToYaml(List<ApiDefinition> apiDefinitions) {
+        Yaml yaml = new Yaml();
+        return yaml.dump(apiDefinitions);
     }
 
     private String getCellValueAsString(Cell cell) {
