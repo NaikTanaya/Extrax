@@ -1,14 +1,12 @@
 package com.example.api.controller;
 
-import com.example.api.model.ApiDefinition;
 import com.example.api.service.ExcelProcessingService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.util.List;
@@ -20,56 +18,33 @@ public class FileController {
     @Autowired
     private ExcelProcessingService excelProcessingService;
 
-    // Endpoint to serve the HTML form
+    // Endpoint to show the file upload form
     @GetMapping("/upload")
-    public String showUploadForm(Model model) {
-        return "upload"; // This corresponds to upload.html in the templates directory
+    public String showUploadForm() {
+        return "form";  // Render the form.html page for file upload
     }
 
+    // Endpoint to handle the Excel file upload and process it
     @PostMapping("/upload")
-    public ResponseEntity<List<ApiDefinition>> uploadExcel(@RequestParam("file") MultipartFile file) {
+    public String uploadExcel(@RequestParam("file") MultipartFile file, Model model) {
         try {
-            List<ApiDefinition> apiDefinitions = excelProcessingService.parseExcelFile(file);
-            return ResponseEntity.ok(apiDefinitions);
-        } catch (IOException e) {
-            return ResponseEntity.status(500).body(null);
-        }
-    }
+            // Parse the Excel file and get the list of rows with their cell values
+            List<List<String>> apiInfo = excelProcessingService.parseExcelFile(file);
 
-    @PostMapping("/upload/yaml")
-    public ResponseEntity<String> uploadExcelAndConvertToYaml(@RequestParam("file") MultipartFile file) {
-        try {
-            List<ApiDefinition> apiDefinitions = excelProcessingService.parseExcelFile(file);
-            String yamlOutput = excelProcessingService.convertToYaml(apiDefinitions);
-            return ResponseEntity.ok(yamlOutput);
+            // Convert the list to YAML using SnakeYAML
+            Yaml yaml = new Yaml();
+            String yamlOutput = yaml.dump(apiInfo);
+
+            // Add the YAML output to the model to render in the result.html page
+            model.addAttribute("yamlOutput", yamlOutput);
         } catch (IOException e) {
-            return ResponseEntity.status(500).body("Failed to process file: " + e.getMessage());
+            e.printStackTrace();
+            // In case of an error, add an error message to the model
+            model.addAttribute("message", "Failed to process the Excel file");
+            return "error";  // Render the error.html page if there's an issue
         }
+
+        // Render the result.html page showing the YAML output
+        return "result";
     }
 }
-
-
-
-
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Upload Excel File</title>
-</head>
-<body>
-    <h1>Upload Excel to Convert to OAS</h1>
-    <form method="POST" action="/api/excel/upload" enctype="multipart/form-data">
-        <label>Select Excel file:</label><br><br>
-        <input type="file" name="file" required><br><br>
-        <button type="submit">Upload and Convert</button>
-    </form>
-
-    <h1>Upload Excel and Convert to YAML</h1>
-    <form method="POST" action="/api/excel/upload/yaml" enctype="multipart/form-data">
-        <label>Select Excel file:</label><br><br>
-        <input type="file" name="file" required><br><br>
-        <button type="submit">Upload and Convert to YAML</button>
-    </form>
-</body>
-</html>
