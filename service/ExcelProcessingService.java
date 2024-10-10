@@ -1,41 +1,48 @@
 package com.example.api.service;
 
+import com.example.api.model.ApiDefinition;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class ExcelProcessingService {
 
-    public Map<String, Object> parseExcelFile(MultipartFile file) throws IOException {
-        Map<String, Object> apiInfo = new HashMap<>();
+    public List<ApiDefinition> parseExcelFile(MultipartFile file) throws IOException {
+        List<ApiDefinition> apiDefinitions = new ArrayList<>();
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                 Sheet sheet = workbook.getSheetAt(i);
                 System.out.println("Processing sheet: " + sheet.getSheetName()); // Debugging line
 
-                for (int rowIndex = 0; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) { // Start at 1 if the first row is headers
                     Row row = sheet.getRow(rowIndex);
                     if (row != null) {
-                        StringBuilder rowData = new StringBuilder();
-                        for (int colIndex = 0; colIndex < row.getPhysicalNumberOfCells(); colIndex++) {
-                            Cell cell = row.getCell(colIndex);
-                            String cellValue = getCellValueAsString(cell);
-                            rowData.append("Column " + colIndex + ": " + cellValue + " | "); // Debugging output
+                        ApiDefinition apiDefinition = new ApiDefinition(getCellValueAsString(row.getCell(0))); // Assuming the API name is in the first column
+                        
+                        for (int colIndex = 1; colIndex < row.getPhysicalNumberOfCells(); colIndex++) { // Start at 1 to skip the API name
+                            String key = sheet.getRow(0).getCell(colIndex).getStringCellValue(); // Get the header for the column
+                            String value = getCellValueAsString(row.getCell(colIndex));
+                            apiDefinition.setAttribute(key, value);
                         }
-                        System.out.println("Row " + rowIndex + ": " + rowData.toString()); // Debugging output
-                        // Assuming you want to add each row's data to apiInfo; modify as needed
-                        apiInfo.put("Row " + rowIndex, rowData.toString());
+
+                        apiDefinitions.add(apiDefinition);
                     }
                 }
             }
         }
-        return apiInfo;
+        return apiDefinitions;
+    }
+
+    public String convertToYaml(List<ApiDefinition> apiDefinitions) throws IOException {
+        YAMLMapper yamlMapper = new YAMLMapper();
+        return yamlMapper.writeValueAsString(apiDefinitions);
     }
 
     private String getCellValueAsString(Cell cell) {
