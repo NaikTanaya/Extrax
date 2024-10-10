@@ -21,6 +21,7 @@ public class ExcelProcessingService {
                 Sheet sheet = workbook.getSheetAt(i);
                 System.out.println("Processing sheet: " + sheet.getSheetName());
 
+                // Check if the sheet is empty
                 if (sheet.getPhysicalNumberOfRows() == 0) {
                     System.out.println("Sheet " + sheet.getSheetName() + " is empty. Skipping.");
                     continue; // Skip empty sheets
@@ -41,27 +42,35 @@ public class ExcelProcessingService {
 
                     // Ensure the first cell exists for API name
                     Cell apiNameCell = row.getCell(0);
-                    if (apiNameCell != null) {
-                        ApiDefinition apiDefinition = new ApiDefinition(getCellValueAsString(apiNameCell));
+                    if (apiNameCell == null) {
+                        System.out.println("API Name cell is null at row index: " + rowIndex);
+                        continue; // Skip this row if the API name is null
+                    }
 
-                        // Process each cell in the row, starting from index 1 to skip API name
-                        for (int colIndex = 1; colIndex < row.getPhysicalNumberOfCells(); colIndex++) {
-                            Cell keyCell = sheet.getRow(0).getCell(colIndex); // Get header for the column
-                            Cell valueCell = row.getCell(colIndex); // Get the value cell
+                    // Create a new ApiDefinition using the API Name
+                    ApiDefinition apiDefinition = new ApiDefinition(getCellValueAsString(apiNameCell));
 
-                            if (keyCell != null && valueCell != null) {
-                                String key = getCellValueAsString(keyCell);
-                                String value = getCellValueAsString(valueCell);
-                                apiDefinition.setAttribute(key, value);
-                            } else {
-                                System.out.println("Header cell or value cell is null at row " + rowIndex + ", column " + colIndex);
+                    // Process each cell in the row, starting from index 1 to skip API name
+                    for (int colIndex = 1; colIndex < row.getPhysicalNumberOfCells(); colIndex++) {
+                        Cell keyCell = sheet.getRow(0).getCell(colIndex); // Get header for the column
+                        Cell valueCell = row.getCell(colIndex); // Get the value cell
+
+                        // Check for null header and value cells
+                        if (keyCell != null && valueCell != null) {
+                            String key = getCellValueAsString(keyCell);
+                            String value = getCellValueAsString(valueCell);
+                            apiDefinition.setAttribute(key, value);
+                        } else {
+                            if (keyCell == null) {
+                                System.out.println("Header cell is null at row " + rowIndex + ", column " + colIndex);
+                            }
+                            if (valueCell == null) {
+                                System.out.println("Value cell is null at row " + rowIndex + ", column " + colIndex);
                             }
                         }
-
-                        apiDefinitions.add(apiDefinition);
-                    } else {
-                        System.out.println("API Name cell is null at row index: " + rowIndex);
                     }
+
+                    apiDefinitions.add(apiDefinition);
                 }
             }
         }
