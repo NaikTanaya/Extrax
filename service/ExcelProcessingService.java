@@ -32,7 +32,7 @@ public class ExcelProcessingService {
                             for (int colIndex = 1; colIndex < row.getPhysicalNumberOfCells(); colIndex++) { // Start at 1 to skip the API name
                                 Cell keyCell = sheet.getRow(0).getCell(colIndex); // Get the header for the column
                                 if (keyCell != null) {
-                                    String key = keyCell.getStringCellValue(); // Get header value
+                                    String key = getCellValueAsString(keyCell); // Get header value
                                     String value = getCellValueAsString(row.getCell(colIndex));
                                     apiDefinition.setAttribute(key, value);
                                 } else {
