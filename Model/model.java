@@ -1,85 +1,91 @@
 package com.example.api.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.util.List;
-import java.util.Map;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiDefinition {
-    private String apiName;
+    private String apiUrnNumber;
+    private String functionalName;
+    private String technicalName;
+    private String method;
+    private String version;
     private String description;
-    private String requestMethod;
-    private Map<String, String> parameters; // Key-value pairs for parameters
-    private Map<String, String> errorSchema; // Error schema, if available
-    private List<String> responses; // List of response information
+    private String cbApiId;
+    private String sapiUrl;
+    private List<QueryParameter> queryParameters;
+    private List<ResponsePayload> responsePayloads;
 
-    // Constructor
-    public ApiDefinition(String apiName, String description, String requestMethod, 
-                         Map<String, String> parameters, Map<String, String> errorSchema, List<String> responses) {
-        this.apiName = apiName;
-        this.description = description;
-        this.requestMethod = requestMethod;
-        this.parameters = parameters;
-        this.errorSchema = errorSchema;
-        this.responses = responses;
+    // Getters and Setters
+    public String getApiUrnNumber() { return apiUrnNumber; }
+    public void setApiUrnNumber(String apiUrnNumber) { this.apiUrnNumber = apiUrnNumber; }
+
+    public String getFunctionalName() { return functionalName; }
+    public void setFunctionalName(String functionalName) { this.functionalName = functionalName; }
+
+    public String getTechnicalName() { return technicalName; }
+    public void setTechnicalName(String technicalName) { this.technicalName = technicalName; }
+
+    public String getMethod() { return method; }
+    public void setMethod(String method) { this.method = method; }
+
+    public String getVersion() { return version; }
+    public void setVersion(String version) { this.version = version; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public String getCbApiId() { return cbApiId; }
+    public void setCbApiId(String cbApiId) { this.cbApiId = cbApiId; }
+
+    public String getSapiUrl() { return sapiUrl; }
+    public void setSapiUrl(String sapiUrl) { this.sapiUrl = sapiUrl; }
+
+    public List<QueryParameter> getQueryParameters() { return queryParameters; }
+    public void setQueryParameters(List<QueryParameter> queryParameters) { this.queryParameters = queryParameters; }
+
+    public List<ResponsePayload> getResponsePayloads() { return responsePayloads; }
+    public void setResponsePayloads(List<ResponsePayload> responsePayloads) { this.responsePayloads = responsePayloads; }
+
+    // Nested classes for QueryParameter and ResponsePayload
+    public static class QueryParameter {
+        private String name;
+        private String description;
+        private String type;
+        private boolean required;
+        private String example;
+
+        // Getters and Setters
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+
+        public boolean isRequired() { return required; }
+        public void setRequired(boolean required) { this.required = required; }
+
+        public String getExample() { return example; }
+        public void setExample(String example) { this.example = example; }
     }
 
-    // Getters and setters
-    public String getApiName() {
-        return apiName;
-    }
+    public static class ResponsePayload {
+        private String statusCode;
+        private String description;
+        private String schema;
 
-    public void setApiName(String apiName) {
-        this.apiName = apiName;
-    }
+        // Getters and Setters
+        public String getStatusCode() { return statusCode; }
+        public void setStatusCode(String statusCode) { this.statusCode = statusCode; }
 
-    public String getDescription() {
-        return description;
-    }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getRequestMethod() {
-        return requestMethod;
-    }
-
-    public void setRequestMethod(String requestMethod) {
-        this.requestMethod = requestMethod;
-    }
-
-    public Map<String, String> getParameters() {
-        return parameters;
-    }
-
-    public void setParameters(Map<String, String> parameters) {
-        this.parameters = parameters;
-    }
-
-    public Map<String, String> getErrorSchema() {
-        return errorSchema;
-    }
-
-    public void setErrorSchema(Map<String, String> errorSchema) {
-        this.errorSchema = errorSchema;
-    }
-
-    public List<String> getResponses() {
-        return responses;
-    }
-
-    public void setResponses(List<String> responses) {
-        this.responses = responses;
-    }
-
-    @Override
-    public String toString() {
-        return "ApiDefinition{" +
-                "apiName='" + apiName + '\'' +
-                ", description='" + description + '\'' +
-                ", requestMethod='" + requestMethod + '\'' +
-                ", parameters=" + parameters +
-                ", errorSchema=" + errorSchema +
-                ", responses=" + responses +
-                '}';
+        public String getSchema() { return schema; }
+        public void setSchema(String schema) { this.schema = schema; }
     }
 }
