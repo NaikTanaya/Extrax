@@ -17,14 +17,20 @@ public class ExcelProcessingService {
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                 Sheet sheet = workbook.getSheetAt(i);
+                System.out.println("Processing sheet: " + sheet.getSheetName()); // Debugging line
 
-                // Example: Reading data from the first row
-                Row row = sheet.getRow(0);
-                if (row != null) {
-                    for (int j = 0; j < row.getPhysicalNumberOfCells(); j++) {
-                        Cell cell = row.getCell(j);
-                        String cellValue = getCellValueAsString(cell);
-                        apiInfo.put("Column " + j, cellValue);
+                for (int rowIndex = 0; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                    Row row = sheet.getRow(rowIndex);
+                    if (row != null) {
+                        StringBuilder rowData = new StringBuilder();
+                        for (int colIndex = 0; colIndex < row.getPhysicalNumberOfCells(); colIndex++) {
+                            Cell cell = row.getCell(colIndex);
+                            String cellValue = getCellValueAsString(cell);
+                            rowData.append("Column " + colIndex + ": " + cellValue + " | "); // Debugging output
+                        }
+                        System.out.println("Row " + rowIndex + ": " + rowData.toString()); // Debugging output
+                        // Assuming you want to add each row's data to apiInfo; modify as needed
+                        apiInfo.put("Row " + rowIndex, rowData.toString());
                     }
                 }
             }
@@ -41,10 +47,8 @@ public class ExcelProcessingService {
             case STRING:
                 return cell.getStringCellValue();
             case NUMERIC:
-                // If the cell type is numeric, you can return it as a string
-                // For formatting, you can also use DateUtil to check if it's a date
                 if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString(); // or format it as needed
+                    return cell.getDateCellValue().toString(); // Format as needed
                 }
                 return String.valueOf(cell.getNumericCellValue());
             case BOOLEAN:
