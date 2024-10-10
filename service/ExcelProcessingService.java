@@ -13,7 +13,7 @@ import java.util.List;
 @Service
 public class ExcelProcessingService {
 
-    public List<ApiDefinition> parseExcelFile(MMultipartFile file) throws IOException {
+    public List<ApiDefinition> parseExcelFile(MultipartFile file) throws IOException {
         List<ApiDefinition> apiDefinitions = new ArrayList<>();
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
@@ -23,16 +23,29 @@ public class ExcelProcessingService {
 
                 for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) { // Start at 1 if the first row is headers
                     Row row = sheet.getRow(rowIndex);
-                    if (row != null) {
-                        ApiDefinition apiDefinition = new ApiDefinition(getCellValueAsString(row.getCell(0))); // Assuming the API name is in the first column
-                        
-                        for (int colIndex = 1; colIndex < row.getPhysicalNumberOfCells(); colIndex++) { // Start at 1 to skip the API name
-                            String key = sheet.getRow(0).getCell(colIndex).getStringCellValue(); // Get the header for the column
-                            String value = getCellValueAsString(row.getCell(colIndex));
-                            apiDefinition.setAttribute(key, value);
-                        }
+                    if (row != null) { // Check if row is not null
+                        // Ensure the first cell exists
+                        Cell apiNameCell = row.getCell(0);
+                        if (apiNameCell != null) {
+                            ApiDefinition apiDefinition = new ApiDefinition(getCellValueAsString(apiNameCell)); // Assuming the API name is in the first column
+                            
+                            for (int colIndex = 1; colIndex < row.getPhysicalNumberOfCells(); colIndex++) { // Start at 1 to skip the API name
+                                Cell keyCell = sheet.getRow(0).getCell(colIndex); // Get the header for the column
+                                if (keyCell != null) {
+                                    String key = keyCell.getStringCellValue(); // Get header value
+                                    String value = getCellValueAsString(row.getCell(colIndex));
+                                    apiDefinition.setAttribute(key, value);
+                                } else {
+                                    System.out.println("Header cell is null at column index: " + colIndex);
+                                }
+                            }
 
-                        apiDefinitions.add(apiDefinition);
+                            apiDefinitions.add(apiDefinition);
+                        } else {
+                            System.out.println("API Name cell is null at row index: " + rowIndex);
+                        }
+                    } else {
+                        System.out.println("Row is null at index: " + rowIndex);
                     }
                 }
             }
