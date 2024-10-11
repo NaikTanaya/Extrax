@@ -1,4 +1,3 @@
-            
 package com.example.api.service;
 
 import com.example.api.model.ApiDefinition;
@@ -20,8 +19,6 @@ public class ExcelProcessingService {
         List<ApiDefinition.ResponsePayload> responsePayloads = new ArrayList<>();
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
-   
-
             Sheet sheet = workbook.getSheetAt(0);  // Assuming the first sheet contains the relevant data
 
             // Variables to track whether we are parsing request or response parameters
@@ -71,7 +68,10 @@ public class ExcelProcessingService {
                     queryParameter.setParameterSampleValues(getCellValueAsString(row.getCell(10)));
                     queryParameter.setParameterRemarks(getCellValueAsString(row.getCell(11)));
 
-                    queryParameters.add(queryParameter);  // Add to the list of request parameters
+                    // Only add non-empty query parameters to the list
+                    if (!isEmpty(queryParameter)) {
+                        queryParameters.add(queryParameter);  // Add to the list of request parameters
+                    }
                 }
 
                 // Parse response parameters (column-wise)
@@ -90,7 +90,10 @@ public class ExcelProcessingService {
                     responsePayload.setResponseSampleValues(getCellValueAsString(row.getCell(10)));
                     responsePayload.setResponseRemarks(getCellValueAsString(row.getCell(11)));
 
-                    responsePayloads.add(responsePayload);  // Add to the list of response payloads
+                    // Only add non-empty response payloads to the list
+                    if (!isEmpty(responsePayload)) {
+                        responsePayloads.add(responsePayload);  // Add to the list of response payloads
+                    }
                 }
             }
 
@@ -147,7 +150,7 @@ public class ExcelProcessingService {
 
         switch (cell.getCellType()) {
             case STRING:
-                return cell.getStringCellValue();
+                return cell.getStringCellValue().trim();  // Trim whitespace
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue().toString();  // Format as needed
@@ -160,5 +163,17 @@ public class ExcelProcessingService {
             default:
                 return "";
         }
+    }
+
+    // Check if query parameter is empty based on its required fields
+    private boolean isEmpty(ApiDefinition.QueryParameter queryParameter) {
+        return queryParameter.getParameterCode().isEmpty() && 
+               queryParameter.getParameterElementName().isEmpty(); // Add more checks as necessary
+    }
+
+    // Check if response payload is empty based on its required fields
+    private boolean isEmpty(ApiDefinition.ResponsePayload responsePayload) {
+        return responsePayload.getResponseCode().isEmpty() && 
+               responsePayload.getResponseElementName().isEmpty(); // Add more checks as necessary
     }
 }
