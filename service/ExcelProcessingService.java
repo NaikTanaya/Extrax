@@ -19,6 +19,7 @@ public class ExcelProcessingService {
         List<ApiDefinition.ResponsePayload> responsePayloads = new ArrayList<>();
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+
             Sheet sheet = workbook.getSheetAt(0);  // Assuming the first sheet contains the relevant data
 
             // Variables to track whether we are parsing request or response parameters
@@ -32,12 +33,12 @@ public class ExcelProcessingService {
                 String firstCellValue = getCellValueAsString(row.getCell(0)).trim();
 
                 // Check if we are switching to the request or response section
-                if (firstCellValue.equalsIgnoreCase("Request")) {
+                if (firstCellValue.equalsIgnoreCase("REQ")) {
                     parsingRequest = true;
                     parsingResponse = false;
                     queryParameters = new ArrayList<>();  // Start collecting request parameters
                     continue;
-                } else if (firstCellValue.equalsIgnoreCase("Response")) {
+                } else if (firstCellValue.equalsIgnoreCase("RES")) {
                     parsingRequest = false;
                     parsingResponse = true;
                     responsePayloads = new ArrayList<>();  // Start collecting response payloads
@@ -52,7 +53,7 @@ public class ExcelProcessingService {
                     handleApiDetails(apiDefinition, row);  // Handling row-wise API details
                 }
 
-                // Parse request parameters (column-wise)
+                // Parse request parameters (only if in the REQ section)
                 if (parsingRequest) {
                     ApiDefinition.QueryParameter queryParameter = new ApiDefinition.QueryParameter();
                     queryParameter.setParameterCode(getCellValueAsString(row.getCell(0)));
@@ -68,13 +69,13 @@ public class ExcelProcessingService {
                     queryParameter.setParameterSampleValues(getCellValueAsString(row.getCell(10)));
                     queryParameter.setParameterRemarks(getCellValueAsString(row.getCell(11)));
 
-                    // Only add non-empty query parameters to the list
-                    if (!isEmpty(queryParameter)) {
-                        queryParameters.add(queryParameter);  // Add to the list of request parameters
+                    // Add to the list if at least one field is filled
+                    if (!isQueryParameterEmpty(queryParameter)) {
+                        queryParameters.add(queryParameter);
                     }
                 }
 
-                // Parse response parameters (column-wise)
+                // Parse response parameters (only if in the RES section)
                 if (parsingResponse) {
                     ApiDefinition.ResponsePayload responsePayload = new ApiDefinition.ResponsePayload();
                     responsePayload.setResponseCode(getCellValueAsString(row.getCell(0)));
@@ -90,9 +91,9 @@ public class ExcelProcessingService {
                     responsePayload.setResponseSampleValues(getCellValueAsString(row.getCell(10)));
                     responsePayload.setResponseRemarks(getCellValueAsString(row.getCell(11)));
 
-                    // Only add non-empty response payloads to the list
-                    if (!isEmpty(responsePayload)) {
-                        responsePayloads.add(responsePayload);  // Add to the list of response payloads
+                    // Add to the list if at least one field is filled
+                    if (!isResponsePayloadEmpty(responsePayload)) {
+                        responsePayloads.add(responsePayload);
                     }
                 }
             }
@@ -143,6 +144,38 @@ public class ExcelProcessingService {
         }
     }
 
+    // Check if all fields of the query parameter are empty
+    private boolean isQueryParameterEmpty(ApiDefinition.QueryParameter queryParameter) {
+        return queryParameter.getParameterCode().isEmpty() &&
+               queryParameter.getParameterSegmentLevel().isEmpty() &&
+               queryParameter.getParameterElementName().isEmpty() &&
+               queryParameter.getParameterFieldDescription().isEmpty() &&
+               queryParameter.getParameterNLSField().isEmpty() &&
+               queryParameter.getParameterTechnicalName().isEmpty() &&
+               queryParameter.getParameterMadatory().isEmpty() &&
+               queryParameter.getParameterBusinessDescription().isEmpty() &&
+               queryParameter.getParameterObjectType().isEmpty() &&
+               queryParameter.getParameterOccurenceCount().isEmpty() &&
+               queryParameter.getParameterSampleValues().isEmpty() &&
+               queryParameter.getParameterRemarks().isEmpty();
+    }
+
+    // Check if all fields of the response payload are empty
+    private boolean isResponsePayloadEmpty(ApiDefinition.ResponsePayload responsePayload) {
+        return responsePayload.getResponseCode().isEmpty() &&
+               responsePayload.getResponseSegmentLevel().isEmpty() &&
+               responsePayload.getResponseElementName().isEmpty() &&
+               responsePayload.getResponseFieldDescription().isEmpty() &&
+               responsePayload.getResponseNLSField().isEmpty() &&
+               responsePayload.getResponseTechnicalName().isEmpty() &&
+               responsePayload.getResponseMadatory().isEmpty() &&
+               responsePayload.getResponseDescription().isEmpty() &&
+               responsePayload.getResponseObjectType().isEmpty() &&
+               responsePayload.getResponseOccurenceCount().isEmpty() &&
+               responsePayload.getResponseSampleValues().isEmpty() &&
+               responsePayload.getResponseRemarks().isEmpty();
+    }
+
     private String getCellValueAsString(Cell cell) {
         if (cell == null) {
             return "";
@@ -150,7 +183,7 @@ public class ExcelProcessingService {
 
         switch (cell.getCellType()) {
             case STRING:
-                return cell.getStringCellValue().trim();  // Trim whitespace
+                return cell.getStringCellValue();
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue().toString();  // Format as needed
@@ -163,17 +196,5 @@ public class ExcelProcessingService {
             default:
                 return "";
         }
-    }
-
-    // Check if query parameter is empty based on its required fields
-    private boolean isEmpty(ApiDefinition.QueryParameter queryParameter) {
-        return queryParameter.getParameterCode().isEmpty() && 
-               queryParameter.getParameterElementName().isEmpty(); // Add more checks as necessary
-    }
-
-    // Check if response payload is empty based on its required fields
-    private boolean isEmpty(ApiDefinition.ResponsePayload responsePayload) {
-        return responsePayload.getResponseCode().isEmpty() && 
-               responsePayload.getResponseElementName().isEmpty(); // Add more checks as necessary
     }
 }
