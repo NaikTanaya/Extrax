@@ -14,15 +14,13 @@ public class ExcelProcessingService {
 
     public List<ApiDefinition> parseExcelFile(MultipartFile file) throws IOException {
         List<ApiDefinition> apiDefinitions = new ArrayList<>();
-        ApiDefinition apiDefinition = null;  // Holds the current API definition being processed
+        ApiDefinition apiDefinition = null; // Holds the current API definition being processed
         List<ApiDefinition.QueryParameter> queryParameters = new ArrayList<>();
         List<ApiDefinition.ResponsePayload> responsePayloads = new ArrayList<>();
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
-
             Sheet sheet = workbook.getSheetAt(0);  // Assuming the first sheet contains the relevant data
 
-            // Variables to track whether we are parsing request or response parameters
             boolean parsingRequest = false;
             boolean parsingResponse = false;
 
@@ -31,11 +29,6 @@ public class ExcelProcessingService {
                 if (row == null) continue;
 
                 String firstCellValue = getCellValueAsString(row.getCell(0)).trim();
-
-                // Skip heading rows that contain "REQ/RES" together in one cell
-                if (firstCellValue.equalsIgnoreCase("REQ/RES")) {
-                    continue;  // Skip this row as it's a heading
-                }
 
                 // Check if we are switching to the request or response section
                 if (firstCellValue.equalsIgnoreCase("REQ")) {
@@ -48,6 +41,11 @@ public class ExcelProcessingService {
                     parsingResponse = true;
                     responsePayloads = new ArrayList<>();  // Start collecting response payloads
                     continue;
+                }
+
+                // Skip rows that contain "REQ" or "RES" in a way that indicates they are headers
+                if (firstCellValue.equalsIgnoreCase("REQ/RES")) {
+                    continue;  // Ignore header row
                 }
 
                 // Parse row-wise API metadata (assumed to be at the top)
