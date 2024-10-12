@@ -200,4 +200,53 @@ public class ExcelProcessingService {
                 return "";
         }
     }
+
+
+
+ public String convertToYaml(List<ApiDefinition> apiInfo) {
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        options.setPrettyFlow(true);
+        options.setIndent(4);
+        options.setWidth(120); // Set width for better readability
+
+        Representer representer = new Representer();
+        Yaml yaml = new Yaml(representer, options);
+
+        // Constructing the OAS YAML structure
+        for (ApiDefinition apiDefinition : apiInfo) {
+            // You can customize the OAS YAML structure here
+            var openApi = new OpenApiSpec();
+            openApi.setOpenapi("3.0.0");
+            openApi.setInfo(new Info(apiDefinition.getFunctionalName(), apiDefinition.getDescription()));
+            openApi.setPaths(new Paths());
+
+            // Add the request parameters
+            var pathItem = new PathItem();
+            var operation = new Operation();
+            operation.setOperationId(apiDefinition.getApiUrnNumber());
+            operation.setSummary(apiDefinition.getFunctionalName());
+            operation.setDescription(apiDefinition.getDescription());
+
+            // Set parameters for the operation
+            for (ApiDefinition.QueryParameter queryParameter : apiDefinition.getQueryParameters()) {
+                var parameter = new Parameter();
+                parameter.setName(queryParameter.getParameterCode());
+                parameter.setIn("query");
+                parameter.setRequired(queryParameter.getParameterMandatory().equalsIgnoreCase("yes"));
+                parameter.setDescription(queryParameter.getParameterFieldDescription());
+                operation.addParameter(parameter);
+            }
+
+            pathItem.setGet(operation);
+            openApi.getPaths().put(apiDefinition.getSapiUrl(), pathItem);
+
+            // Convert the OpenApiSpec object to YAML
+            StringWriter writer = new StringWriter();
+            yaml.dump(openApi, writer);
+            return writer.toString(); // Return the YAML representation
+        }
+        return "";
+    }
+}
 }
