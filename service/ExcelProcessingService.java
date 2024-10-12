@@ -1,119 +1,154 @@
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.stereotype.Service;
-
-import java.io.InputStream;
-import java.util.*;
-
 @Service
 public class ExcelProcessingService {
 
-    // Main function to process the Excel file input stream
-    public List<ApiDefinition> processExcelFile(InputStream inputStream) {
-        List<ApiDefinition> apiDefinitions = new ArrayList<>(); // To store API definitions
-        Map<String, String> apiDetails = new HashMap<>(); // To store API details
-        List<Map<String, String>> requestParameters = new ArrayList<>();
-        List<Map<String, String>> responseParameters = new ArrayList<>();
+    public List<ApiDefinition> parseExcelFile(MultipartFile file) throws IOException {
+        List<ApiDefinition> apiDefinitions = new ArrayList<>();
+        ApiDefinition apiDefinition = null;  // Holds the current API definition being processed
+        List<ApiDefinition.QueryParameter> queryParameters = new ArrayList<>();
+        List<ApiDefinition.ResponsePayload> responsePayloads = new ArrayList<>();
 
-        try {
-            // Create workbook from the input stream
-            Workbook workbook = new XSSFWorkbook(inputStream);
-            Sheet sheet = workbook.getSheetAt(0); // Assuming we are working with the first sheet
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
 
-            boolean isRequestSection = false;
-            boolean isResponseSection = false;
+            Sheet sheet = workbook.getSheetAt(0);  // Assuming the first sheet contains the relevant data
 
-            // Handle API details from the top rows
-            handleAPIDetails(sheet, apiDetails);
+            boolean parsingRequest = false;
+            boolean parsingResponse = false;
+            boolean isHeaderRow = true;  // Marks rows like row 7 with column headings
+            
+            for (int rowIndex = 0; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                Row row = sheet.getRow(rowIndex);
+                if (row == null) continue;
 
-            // Start processing rows for request and response sections
-            Iterator<Row> rowIterator = sheet.iterator();
-            while (rowIterator.hasNext()) {
-                Row row = rowIterator.next();
+                String firstCellValue = getCellValueAsString(row.getCell(0)).trim().toLowerCase();
 
-                // Check if the row is part of the "Request" or "Response" section
-                String sectionHeader = getCellValueAsString(row.getCell(0));
+                // Skip the header row (like row 7)
+                if (rowIndex == 7 || isHeaderRowRow(row)) {
+                    continue;  // Ignore the header row and move on
+                }
 
-                if (sectionHeader != null) {
-                    if (sectionHeader.equalsIgnoreCase("Request")) {
-                        isRequestSection = true;
-                        isResponseSection = false;
-                        continue;
-                    } else if (sectionHeader.equalsIgnoreCase("Response")) {
-                        isRequestSection = false;
-                        isResponseSection = true;
-                        continue;
+                // Start of REQ section, row 11 and onward
+                if (firstCellValue.equals("req")) {
+                    parsingRequest = true;
+                    parsingResponse = false;
+                    continue;  // Skip the row marking the start of REQ
+                }
+
+                // Start of RES section
+                if (firstCellValue.equals("res")) {
+                    parsingRequest = false;
+                    parsingResponse = true;
+                    continue;  // Skip the row marking the start of RES
+                }
+
+                // Parse request parameters in REQ section (starting from row 11)
+                if (parsingRequest) {
+                    ApiDefinition.QueryParameter queryParameter = new ApiDefinition.QueryParameter();
+                    queryParameter.setParameterCode(getCellValueAsString(row.getCell(0)));
+                    queryParameter.setParameterSegmentLevel(getCellValueAsString(row.getCell(1)));
+                    queryParameter.setParameterElementName(getCellValueAsString(row.getCell(2)));
+                    queryParameter.setParameterFieldDescription(getCellValueAsString(row.getCell(3)));
+                    queryParameter.setParameterNLSField(getCellValueAsString(row.getCell(4)));
+                    queryParameter.setParameterTechnicalName(getCellValueAsString(row.getCell(5)));
+                    queryParameter.setParameterMandatory(getCellValueAsString(row.getCell(6)));
+                    queryParameter.setParameterBusinessDescription(getCellValueAsString(row.getCell(7)));
+                    queryParameter.setParameterObjectType(getCellValueAsString(row.getCell(8)));
+                    queryParameter.setParameterOccurrenceCount(getCellValueAsString(row.getCell(9)));
+                    queryParameter.setParameterSampleValues(getCellValueAsString(row.getCell(10)));
+                    queryParameter.setParameterRemarks(getCellValueAsString(row.getCell(11)));
+
+                    if (!isQueryParameterEmpty(queryParameter)) {
+                        queryParameters.add(queryParameter);
                     }
                 }
 
-                // Process each section independently
-                if (isRequestSection) {
-                    Map<String, String> reqParam = extractRowData(row);
-                    if (!reqParam.isEmpty()) {
-                        requestParameters.add(reqParam);
-                    }
-                } else if (isResponseSection) {
-                    Map<String, String> resParam = extractRowData(row);
-                    if (!resParam.isEmpty()) {
-                        responseParameters.add(resParam);
+                // Parse response parameters in RES section
+                if (parsingResponse) {
+                    ApiDefinition.ResponsePayload responsePayload = new ApiDefinition.ResponsePayload();
+                    responsePayload.setResponseCode(getCellValueAsString(row.getCell(0)));
+                    responsePayload.setResponseSegmentLevel(getCellValueAsString(row.getCell(1)));
+                    responsePayload.setResponseElementName(getCellValueAsString(row.getCell(2)));
+                    responsePayload.setResponseFieldDescription(getCellValueAsString(row.getCell(3)));
+                    responsePayload.setResponseNLSField(getCellValueAsString(row.getCell(4)));
+                    responsePayload.setResponseTechnicalName(getCellValueAsString(row.getCell(5)));
+                    responsePayload.setResponseMandatory(getCellValueAsString(row.getCell(6)));
+                    responsePayload.setResponseDescription(getCellValueAsString(row.getCell(7)));
+                    responsePayload.setResponseObjectType(getCellValueAsString(row.getCell(8)));
+                    responsePayload.setResponseOccurrenceCount(getCellValueAsString(row.getCell(9)));
+                    responsePayload.setResponseSampleValues(getCellValueAsString(row.getCell(10)));
+                    responsePayload.setResponseRemarks(getCellValueAsString(row.getCell(11)));
+
+                    if (!isResponsePayloadEmpty(responsePayload)) {
+                        responsePayloads.add(responsePayload);
                     }
                 }
             }
 
-            // Create ApiDefinition object and populate it
-            ApiDefinition apiDefinition = new ApiDefinition();
-            apiDefinition.setApiDetails(apiDetails);
-            apiDefinition.setRequestParameters(requestParameters);
-            apiDefinition.setResponseParameters(responseParameters);
-            apiDefinitions.add(apiDefinition); // Add the populated definition to the list
-
-            workbook.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return apiDefinitions; // Return the populated list of ApiDefinitions
-    }
-
-    // Function to extract and handle API details from the top rows
-    private void handleAPIDetails(Sheet sheet, Map<String, String> apiDetails) {
-        for (int i = 1; i <= 13; i++) { // Assuming first 13 rows have API details
-            Row row = sheet.getRow(i);
-            if (row == null) continue;
-
-            String key = getCellValueAsString(row.getCell(0));
-            String value = getCellValueAsString(row.getCell(1));
-
-            if (key != null && !key.trim().isEmpty()) {
-                apiDetails.put(key.trim(), value.trim());
+            // Assign collected parameters to the API definition
+            if (apiDefinition != null) {
+                apiDefinition.setQueryParameters(queryParameters);
+                apiDefinition.setResponsePayloads(responsePayloads);
+                apiDefinitions.add(apiDefinition);
             }
         }
+
+        return apiDefinitions;
     }
 
-    // Helper method to extract data from a row into a map for request/response sections
-    private Map<String, String> extractRowData(Row row) {
-        Map<String, String> rowData = new HashMap<>();
+    // Helper method to check for header rows
+    private boolean isHeaderRowRow(Row row) {
+        // Example check for typical header content, adjust as necessary
+        return getCellValueAsString(row.getCell(0)).equalsIgnoreCase("req") ||
+               getCellValueAsString(row.getCell(0)).equalsIgnoreCase("res");
+    }
+ public ApiDefinition handleApiDetails(Sheet sheet) {
+        ApiDefinition apiDefinition = new ApiDefinition();
 
-        String parameterCode = getCellValueAsString(row.getCell(0));
-        String segmentLevel = getCellValueAsString(row.getCell(1));
-        String elementName = getCellValueAsString(row.getCell(2));
-        String fieldDescription = getCellValueAsString(row.getCell(3));
-        String mandatory = getCellValueAsString(row.getCell(4));
-        String objectType = getCellValueAsString(row.getCell(5));
-
-        if (parameterCode != null && !parameterCode.isEmpty()) {
-            rowData.put("parameterCode", parameterCode);
-            rowData.put("segmentLevel", segmentLevel);
-            rowData.put("elementName", elementName);
-            rowData.put("fieldDescription", fieldDescription);
-            rowData.put("mandatory", mandatory);
-            rowData.put("objectType", objectType);
+        // Assuming API details like name, version, and description are stored in specific cells
+        Row apiDetailsRow = sheet.getRow(1);  // Assuming row 1 contains API metadata
+        if (apiDetailsRow != null) {
+            apiDefinition.setApiName(getCellValueAsString(apiDetailsRow.getCell(0)));  // Assuming column A has API name
+            apiDefinition.setApiVersion(getCellValueAsString(apiDetailsRow.getCell(1)));  // Assuming column B has API version
+            apiDefinition.setApiDescription(getCellValueAsString(apiDetailsRow.getCell(2)));  // Assuming column C has API description
         }
 
-        return rowData;
+        return apiDefinition;
     }
 
-    // Helper method to get cell value as string
+    // Helper method to check if a QueryParameter object is empty (null or empty values in all fields)
+    private boolean isQueryParameterEmpty(ApiDefinition.QueryParameter queryParameter) {
+        return queryParameter == null ||
+               (queryParameter.getParameterCode() == null || queryParameter.getParameterCode().isEmpty()) &&
+               (queryParameter.getParameterSegmentLevel() == null || queryParameter.getParameterSegmentLevel().isEmpty()) &&
+               (queryParameter.getParameterElementName() == null || queryParameter.getParameterElementName().isEmpty()) &&
+               (queryParameter.getParameterFieldDescription() == null || queryParameter.getParameterFieldDescription().isEmpty()) &&
+               (queryParameter.getParameterNLSField() == null || queryParameter.getParameterNLSField().isEmpty()) &&
+               (queryParameter.getParameterTechnicalName() == null || queryParameter.getParameterTechnicalName().isEmpty()) &&
+               (queryParameter.getParameterMandatory() == null || queryParameter.getParameterMandatory().isEmpty()) &&
+               (queryParameter.getParameterBusinessDescription() == null || queryParameter.getParameterBusinessDescription().isEmpty()) &&
+               (queryParameter.getParameterObjectType() == null || queryParameter.getParameterObjectType().isEmpty()) &&
+               (queryParameter.getParameterOccurrenceCount() == null || queryParameter.getParameterOccurrenceCount().isEmpty()) &&
+               (queryParameter.getParameterSampleValues() == null || queryParameter.getParameterSampleValues().isEmpty()) &&
+               (queryParameter.getParameterRemarks() == null || queryParameter.getParameterRemarks().isEmpty());
+    }
+
+    // Helper method to check if a ResponsePayload object is empty (null or empty values in all fields)
+    private boolean isResponsePayloadEmpty(ApiDefinition.ResponsePayload responsePayload) {
+        return responsePayload == null ||
+               (responsePayload.getResponseCode() == null || responsePayload.getResponseCode().isEmpty()) &&
+               (responsePayload.getResponseSegmentLevel() == null || responsePayload.getResponseSegmentLevel().isEmpty()) &&
+               (responsePayload.getResponseElementName() == null || responsePayload.getResponseElementName().isEmpty()) &&
+               (responsePayload.getResponseFieldDescription() == null || responsePayload.getResponseFieldDescription().isEmpty()) &&
+               (responsePayload.getResponseNLSField() == null || responsePayload.getResponseNLSField().isEmpty()) &&
+               (responsePayload.getResponseTechnicalName() == null || responsePayload.getResponseTechnicalName().isEmpty()) &&
+               (responsePayload.getResponseMandatory() == null || responsePayload.getResponseMandatory().isEmpty()) &&
+               (responsePayload.getResponseDescription() == null || responsePayload.getResponseDescription().isEmpty()) &&
+               (responsePayload.getResponseObjectType() == null || responsePayload.getResponseObjectType().isEmpty()) &&
+               (responsePayload.getResponseOccurrenceCount() == null || responsePayload.getResponseOccurrenceCount().isEmpty()) &&
+               (responsePayload.getResponseSampleValues() == null || responsePayload.getResponseSampleValues().isEmpty()) &&
+               (responsePayload.getResponseRemarks() == null || responsePayload.getResponseRemarks().isEmpty());
+    }
+
+    // Helper method to get the cell value as a String
     private String getCellValueAsString(Cell cell) {
         if (cell == null) {
             return "";
@@ -123,7 +158,11 @@ public class ExcelProcessingService {
             case STRING:
                 return cell.getStringCellValue();
             case NUMERIC:
-                return String.valueOf((int) cell.getNumericCellValue());
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString();
+                } else {
+                    return String.valueOf(cell.getNumericCellValue());
+                }
             case BOOLEAN:
                 return String.valueOf(cell.getBooleanCellValue());
             case FORMULA:
@@ -132,5 +171,7 @@ public class ExcelProcessingService {
                 return "";
         }
     }
-}
 
+    // The rest of your existing methods: handleApiDetails(), isQueryParameterEmpty(), isResponsePayloadEmpty(), getCellValueAsString()...
+
+}
