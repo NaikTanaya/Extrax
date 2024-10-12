@@ -202,7 +202,13 @@ public class ExcelProcessingService {
     }
 
 
-// Convert the parsed API definitions to OAS YAML format
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.representer.Representer;
+import org.yaml.snakeyaml.Yaml;
+
+import java.io.StringWriter;
+import java.util.List;
+
 public String convertToYaml(List<ApiDefinition> apiInfo) {
     DumperOptions options = new DumperOptions();
     options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
@@ -221,6 +227,7 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
 
     for (ApiDefinition apiDefinition : apiInfo) {
         // Create a path item for each API definition
+        String sapiUrl = apiDefinition.getSapiUrl(); // Extracted URL for the path
         PathItem pathItem = new PathItem();
         Operation operation = new Operation();
         operation.setOperationId(apiDefinition.getApiUrnNumber());
@@ -237,8 +244,20 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
             operation.addParameter(parameter);
         }
 
+        // Add responses to the operation
+        Response response = new Response();
+        response.setDescription("Successful response");
+        response.setContent(new Content()); // Assuming you have a Content class to define media types
+        response.getContent().addMediaType("application/json", createResponseSchema(apiDefinition.getResponsePayloads()));
+
+        // Set response on the operation
+        operation.addResponse("200", response);
+        operation.addResponse("400", createErrorResponse("Bad Request"));
+        operation.addResponse("404", createErrorResponse("Not Found"));
+        operation.addResponse("500", createErrorResponse("Internal Server Error"));
+
         pathItem.setGet(operation); // Assuming a GET request; modify if needed
-        openApi.getPaths().put(apiDefinition.getSapiUrl(), pathItem);
+        openApi.getPaths().put(sapiUrl, pathItem);
     }
 
     // Convert the OpenApiSpec object to YAML
@@ -246,5 +265,37 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
     yaml.dump(openApi, writer);
     return writer.toString(); // Return the YAML representation
 }
+
+private Content createResponseSchema(List<ApiDefinition.ResponsePayload> responsePayloads) {
+    Content content = new Content();
+    // Here, define your schema for response payloads based on the list of responsePayloads
+    Schema responseSchema = new Schema();
+    responseSchema.setType("object");
+    Map<String, Property> properties = new HashMap<>();
+    for (ApiDefinition.ResponsePayload responsePayload : responsePayloads) {
+        properties.put("responseCode", new StringProperty().description("Response code."));
+        properties.put("responseSegmentLevel", new StringProperty().description("Segment level of the response."));
+        properties.put("responseElementName", new StringProperty().description("Element name of the response."));
+        properties.put("responseFieldDescription", new StringProperty().description("Description of the response field."));
+        properties.put("responseNLSField", new StringProperty().description("NLS field associated with the response."));
+        properties.put("responseTechnicalName", new StringProperty().description("Technical name of the response."));
+        properties.put("responseMandatory", new StringProperty().description("Indicates if the response is mandatory."));
+        properties.put("responseDescription", new StringProperty().description("Business description of the response."));
+        properties.put("responseObjectType", new StringProperty().description("Object type associated with the response."));
+        properties.put("responseOccurrenceCount", new StringProperty().description("Occurrence count of the response."));
+        properties.put("responseSampleValues", new StringProperty().description("Sample values for the response."));
+        properties.put("responseRemarks", new StringProperty().description("Remarks regarding the response."));
+    }
+    responseSchema.setProperties(properties);
+    content.addMediaType("application/json", new MediaType().schema(responseSchema));
+    return content;
+}
+
+private Response createErrorResponse(String description) {
+    Response response = new Response();
+    response.setDescription(description);
+    return response;
+}
+
 
 }
