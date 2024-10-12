@@ -34,8 +34,8 @@ public class FileController {
         }
 
         try {
-            // Parse the Excel file and get the list of rows with their cell values
-            List<ApiDefinition> apiInfo = excelProcessingService.parseExcelFile(file);
+            // Call the new method in the ExcelProcessingService that handles the Excel processing
+            List<ApiDefinition> apiInfo = excelProcessingService.handleApiDetails(file);
 
             // Debugging the parsed API info
             System.out.println("Parsed API Info: " + apiInfo.size());
@@ -44,13 +44,22 @@ public class FileController {
                 model.addAttribute("message", "No API data parsed from the file.");
                 return "error";  // Render the error.html page if no data is found
             } else {
+                // Iterate through the parsed API info for debugging
                 for (ApiDefinition def : apiInfo) {
                     System.out.println("API URN: " + def.getApiUrnNumber());
-                    for (ApiDefinition.QueryParameter qp : def.getQueryParameters()) {
-                        System.out.println("Query Param: " + qp.getParameterElementName());
+
+                    // Print out details of query parameters
+                    if (def.getQueryParameters() != null) {
+                        for (ApiDefinition.QueryParameter qp : def.getQueryParameters()) {
+                            System.out.println("Query Param: " + qp.getParameterElementName());
+                        }
                     }
-                    for (ApiDefinition.ResponsePayload rp : def.getResponsePayloads()) {
-                        System.out.println("Response Payload: " + rp.getResponseElementName());
+
+                    // Print out details of response payloads
+                    if (def.getResponsePayloads() != null) {
+                        for (ApiDefinition.ResponsePayload rp : def.getResponsePayloads()) {
+                            System.out.println("Response Payload: " + rp.getResponseElementName());
+                        }
                     }
                 }
             }
