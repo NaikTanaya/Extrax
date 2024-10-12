@@ -9,8 +9,8 @@ import java.util.*;
 public class ExcelProcessingService {
 
     // Main function to process the Excel file input stream
-    public Map<String, Object> processExcelFile(InputStream inputStream) {
-        Map<String, Object> response = new HashMap<>();
+    public List<ApiDefinition> processExcelFile(InputStream inputStream) {
+        List<ApiDefinition> apiDefinitions = new ArrayList<>(); // To store API definitions
         Map<String, String> apiDetails = new HashMap<>(); // To store API details
         List<Map<String, String>> requestParameters = new ArrayList<>();
         List<Map<String, String>> responseParameters = new ArrayList<>();
@@ -23,11 +23,11 @@ public class ExcelProcessingService {
             boolean isRequestSection = false;
             boolean isResponseSection = false;
 
-            Iterator<Row> rowIterator = sheet.iterator();
-            
-            // First handle API details from the top rows
+            // Handle API details from the top rows
             handleAPIDetails(sheet, apiDetails);
 
+            // Start processing rows for request and response sections
+            Iterator<Row> rowIterator = sheet.iterator();
             while (rowIterator.hasNext()) {
                 Row row = rowIterator.next();
 
@@ -60,17 +60,19 @@ public class ExcelProcessingService {
                 }
             }
 
-            response.put("apiDetails", apiDetails); // Add API details to response
-            response.put("requestParameters", requestParameters);
-            response.put("responseParameters", responseParameters);
-            workbook.close();
+            // Create ApiDefinition object and populate it
+            ApiDefinition apiDefinition = new ApiDefinition();
+            apiDefinition.setApiDetails(apiDetails);
+            apiDefinition.setRequestParameters(requestParameters);
+            apiDefinition.setResponseParameters(responseParameters);
+            apiDefinitions.add(apiDefinition); // Add the populated definition to the list
 
+            workbook.close();
         } catch (Exception e) {
             e.printStackTrace();
-            response.put("error", "Error processing Excel file: " + e.getMessage());
         }
 
-        return response;
+        return apiDefinitions; // Return the populated list of ApiDefinitions
     }
 
     // Function to extract and handle API details from the top rows
@@ -131,3 +133,4 @@ public class ExcelProcessingService {
         }
     }
 }
+
