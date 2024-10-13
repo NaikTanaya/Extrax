@@ -202,6 +202,15 @@ public class ExcelProcessingService {
     }
 
 
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.representer.Representer;
+
+import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public String convertToYaml(List<ApiDefinition> apiInfo) {
     // Configure YAML output options
     DumperOptions options = new DumperOptions();
@@ -214,9 +223,9 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
     Yaml yaml = new Yaml(representer, options);
 
     // Create the OpenAPI structure
-    OpenApiSpec openApi = new OpenApiSpec(); // This should be replaced with your actual OpenApiSpec class
+    OpenApiSpec openApi = new OpenApiSpec();  // Assume OpenApiSpec class is defined elsewhere
     openApi.setOpenapi("3.0.0");
-    openApi.setInfo(new Info("API Documentation", "This API allows users to interact with various functionalities.", "1.0.0"));
+    openApi.setInfo(new Info("API Documentation", "API Description", "1.0.0"));
 
     for (ApiDefinition apiDefinition : apiInfo) {
         PathItem pathItem = new PathItem();
@@ -225,7 +234,7 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
         operation.setSummary(apiDefinition.getFunctionalName());
         operation.setDescription(apiDefinition.getDescription());
 
-        // Set query parameters for the operation
+        // Handle Query Parameters
         for (ApiDefinition.QueryParameter queryParameter : apiDefinition.getQueryParameters()) {
             Parameter parameter = new Parameter();
             parameter.setName(queryParameter.getParameterCode());
@@ -233,32 +242,32 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
             parameter.setRequired(queryParameter.getParameterMandatory().equalsIgnoreCase("yes"));
             parameter.setDescription(queryParameter.getParameterFieldDescription());
 
-            // Add query parameter schema
+            // Add schema to parameter
             Schema schema = new Schema();
-            schema.setType("string"); // You can change this based on the type of your parameter
+            schema.setType("string");  // Set appropriate types as necessary
             parameter.setSchema(schema);
             operation.addParameter(parameter);
         }
 
-        // Add detailed response payloads
+        // Handle Responses
         ApiResponse response = new ApiResponse();
         response.setDescription("Successful response");
 
         Content content = new Content();
         MediaType mediaType = new MediaType();
 
-        // Create a response schema for all the response fields
+        // Create response schema for response fields
         Schema responseSchema = new Schema();
         responseSchema.setType("object");
 
         Map<String, Schema> properties = new HashMap<>();
         for (ApiDefinition.ResponsePayload responsePayload : apiDefinition.getResponsePayloads()) {
             Schema propertySchema = new Schema();
-            propertySchema.setType("string"); // Adjust type if necessary
+            propertySchema.setType("string");  // Adjust as necessary
             propertySchema.setDescription(responsePayload.getResponseFieldDescription());
             properties.put(responsePayload.getResponseElementName(), propertySchema);
         }
-        responseSchema.setProperties(properties);  // Set all properties in the schema
+        responseSchema.setProperties(properties);
 
         mediaType.setSchema(responseSchema);
         content.addMediaType("application/json", mediaType);
@@ -266,19 +275,19 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
         response.setContent(content);
         operation.addResponse("200", response);
 
-        // Error responses (400, 404, 500)
+        // Add common error responses (400, 404, 500)
         operation.addResponse("400", createErrorResponse("Bad Request"));
         operation.addResponse("404", createErrorResponse("Not Found"));
         operation.addResponse("500", createErrorResponse("Internal Server Error"));
 
-        pathItem.setGet(operation); // Assuming a GET request
+        pathItem.setGet(operation);  // Assuming a GET request
         openApi.getPaths().put(apiDefinition.getSapiUrl(), pathItem);
     }
 
-    // Convert the OpenApiSpec object to YAML
+    // Convert the OpenAPI object to YAML
     StringWriter writer = new StringWriter();
     yaml.dump(openApi, writer);
-    return writer.toString(); // Return the YAML representation
+    return writer.toString();
 }
 
 private ApiResponse createErrorResponse(String description) {
