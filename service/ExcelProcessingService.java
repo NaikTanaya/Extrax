@@ -211,88 +211,126 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.representer.Representer;
+
+import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public String convertToYaml(List<ApiDefinition> apiInfo) {
     // Configure YAML output options
     DumperOptions options = new DumperOptions();
     options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
     options.setPrettyFlow(true);
-    options.setIndent(4);
+    options.setIndent(2);
     options.setWidth(120);
 
     Representer representer = new Representer();
+    representer.getPropertyUtils().setSkipMissingProperties(true); // Skip null properties in YAML
     Yaml yaml = new Yaml(representer, options);
 
-    // Create the OpenAPI structure
-    OpenApiSpec openApi = new OpenApiSpec();  // Assume OpenApiSpec class is defined elsewhere
-    openApi.setOpenapi("3.0.0");
-    openApi.setInfo(new Info("API Documentation", "API Description", "1.0.0"));
+    // Root OpenAPI structure
+    Map<String, Object> openApiSpec = new HashMap<>();
+    openApiSpec.put("openapi", "3.0.0");
 
+    // Info section
+    Map<String, String> info = new HashMap<>();
+    info.put("title", "API Documentation");
+    info.put("description", "Generated API Documentation");
+    info.put("version", "1.0.0");
+    openApiSpec.put("info", info);
+
+    // Paths section
+    Map<String, Object> paths = new HashMap<>();
+
+    // Loop through the parsed API definitions
     for (ApiDefinition apiDefinition : apiInfo) {
-        PathItem pathItem = new PathItem();
-        Operation operation = new Operation();
-        operation.setOperationId(apiDefinition.getApiUrnNumber());
-        operation.setSummary(apiDefinition.getFunctionalName());
-        operation.setDescription(apiDefinition.getDescription());
+        Map<String, Object> pathItem = new HashMap<>();
+        Map<String, Object> operation = new HashMap<>();
 
-        // Handle Query Parameters
-        for (ApiDefinition.QueryParameter queryParameter : apiDefinition.getQueryParameters()) {
-            Parameter parameter = new Parameter();
-            parameter.setName(queryParameter.getParameterCode());
-            parameter.setIn("query");
-            parameter.setRequired(queryParameter.getParameterMandatory().equalsIgnoreCase("yes"));
-            parameter.setDescription(queryParameter.getParameterFieldDescription());
+        // Add operation-level fields
+        operation.put("operationId", apiDefinition.getApiUrnNumber());
+        operation.put("summary", apiDefinition.getFunctionalName());
+        operation.put("description", apiDefinition.getDescription());
 
-            // Add schema to parameter
-            Schema schema = new Schema();
-            schema.setType("string");  // Set appropriate types as necessary
-            parameter.setSchema(schema);
-            operation.addParameter(parameter);
+        // Handle query parameters
+        if (apiDefinition.getQueryParameters() != null && !apiDefinition.getQueryParameters().isEmpty()) {
+            List<Map<String, Object>> parameters = new ArrayList<>();
+            for (ApiDefinition.QueryParameter queryParameter : apiDefinition.getQueryParameters()) {
+                Map<String, Object> parameter = new HashMap<>();
+                parameter.put("name", queryParameter.getParameterCode());
+                parameter.put("in", "query");  // Assuming query parameters
+                parameter.put("required", queryParameter.getParameterMandatory().equalsIgnoreCase("yes"));
+                parameter.put("description", queryParameter.getParameterFieldDescription());
+
+                // Schema for the parameter (can be modified as per the real data types)
+                Map<String, Object> schema = new HashMap<>();
+                schema.put("type", "string");
+                parameter.put("schema", schema);
+
+                parameters.add(parameter);
+            }
+            operation.put("parameters", parameters);
         }
 
-        // Handle Responses
-        ApiResponse response = new ApiResponse();
-        response.setDescription("Successful response");
+        // Handle response section
+        Map<String, Object> responses = new HashMap<>();
+        Map<String, Object> successResponse = new HashMap<>();
+        successResponse.put("description", "Successful response");
 
-        Content content = new Content();
-        MediaType mediaType = new MediaType();
+        // Content section with JSON response
+        Map<String, Object> content = new HashMap<>();
+        Map<String, Object> mediaType = new HashMap<>();
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
 
-        // Create response schema for response fields
-        Schema responseSchema = new Schema();
-        responseSchema.setType("object");
-
-        Map<String, Schema> properties = new HashMap<>();
-        for (ApiDefinition.ResponsePayload responsePayload : apiDefinition.getResponsePayloads()) {
-            Schema propertySchema = new Schema();
-            propertySchema.setType("string");  // Adjust as necessary
-            propertySchema.setDescription(responsePayload.getResponseFieldDescription());
-            properties.put(responsePayload.getResponseElementName(), propertySchema);
+        // Add response properties from the response payloads
+        Map<String, Object> properties = new HashMap<>();
+        if (apiDefinition.getResponsePayloads() != null) {
+            for (ApiDefinition.ResponsePayload responsePayload : apiDefinition.getResponsePayloads()) {
+                Map<String, Object> propertySchema = new HashMap<>();
+                propertySchema.put("type", "string");  // Adjust based on actual field types
+                propertySchema.put("description", responsePayload.getResponseFieldDescription());
+                properties.put(responsePayload.getResponseElementName(), propertySchema);
+            }
         }
-        responseSchema.setProperties(properties);
 
-        mediaType.setSchema(responseSchema);
-        content.addMediaType("application/json", mediaType);
+        schema.put("properties", properties);
+        mediaType.put("schema", schema);
+        content.put("application/json", mediaType);
+        successResponse.put("content", content);
 
-        response.setContent(content);
-        operation.addResponse("200", response);
+        responses.put("200", successResponse);
 
         // Add common error responses (400, 404, 500)
-        operation.addResponse("400", createErrorResponse("Bad Request"));
-        operation.addResponse("404", createErrorResponse("Not Found"));
-        operation.addResponse("500", createErrorResponse("Internal Server Error"));
+        responses.put("400", createErrorResponse("Bad Request"));
+        responses.put("404", createErrorResponse("Not Found"));
+        responses.put("500", createErrorResponse("Internal Server Error"));
 
-        pathItem.setGet(operation);  // Assuming a GET request
-        openApi.getPaths().put(apiDefinition.getSapiUrl(), pathItem);
+        operation.put("responses", responses);
+
+        // Assuming it's a GET request (adjust for other methods if needed)
+        pathItem.put(apiDefinition.getMethod().toLowerCase(), operation);
+
+        // Add the pathItem to paths with the corresponding API URI
+        paths.put(apiDefinition.getSapiUrl(), pathItem);
     }
 
-    // Convert the OpenAPI object to YAML
+    openApiSpec.put("paths", paths);
+
+    // Convert to YAML
     StringWriter writer = new StringWriter();
-    yaml.dump(openApi, writer);
+    yaml.dump(openApiSpec, writer);
     return writer.toString();
 }
 
-private ApiResponse createErrorResponse(String description) {
-    ApiResponse response = new ApiResponse();
-    response.setDescription(description);
-    return response;
+private Map<String, Object> createErrorResponse(String description) {
+    Map<String, Object> errorResponse = new HashMap<>();
+    errorResponse.put("description", description);
+    return errorResponse;
 }
+
 }
