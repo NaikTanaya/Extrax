@@ -297,5 +297,98 @@ private Response createErrorResponse(String description) {
     return response;
 }
 
+public String convertToYaml(List<ApiDefinition> apiInfo) {
+    DumperOptions options = new DumperOptions();
+    options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+    options.setPrettyFlow(true);
+    options.setIndent(4);
+    options.setWidth(120); // Set width for better readability
+
+    Representer representer = new Representer();
+    Yaml yaml = new Yaml(representer, options);
+
+    // Constructing the OAS YAML structure
+    OpenApiSpec openApi = new OpenApiSpec(); 
+    openApi.setOpenapi("3.0.0");
+    openApi.setInfo(new Info("API Documentation", "This API allows users to interact with various functionalities.", "1.0.0")); 
+
+    for (ApiDefinition apiDefinition : apiInfo) {
+        PathItem pathItem = new PathItem();
+        Operation operation = new Operation();
+        operation.setOperationId(apiDefinition.getApiUrnNumber());
+        operation.setSummary(apiDefinition.getFunctionalName());
+        operation.setDescription(apiDefinition.getDescription());
+
+        // Set query parameters for the operation
+        for (ApiDefinition.QueryParameter queryParameter : apiDefinition.getQueryParameters()) {
+            Parameter parameter = new Parameter();
+            parameter.setName(queryParameter.getParameterCode());
+            parameter.setIn("query");
+            parameter.setRequired(queryParameter.getParameterMandatory().equalsIgnoreCase("yes"));
+            parameter.setDescription(queryParameter.getParameterFieldDescription());
+
+            // Include all additional query parameter fields
+            Schema schema = new Schema();
+            schema.setType("string"); // Adjust type if needed (e.g., integer, boolean)
+            schema.setDescription(queryParameter.getParameterFieldDescription());
+            schema.addExtension("x-segmentLevel", queryParameter.getParameterSegmentLevel());
+            schema.addExtension("x-elementName", queryParameter.getParameterElementName());
+            schema.addExtension("x-nlsField", queryParameter.getParameterNLSField());
+            schema.addExtension("x-technicalName", queryParameter.getParameterTechnicalName());
+            schema.addExtension("x-businessDescription", queryParameter.getParameterBusinessDescription());
+            schema.addExtension("x-objectType", queryParameter.getParameterObjectType());
+            schema.addExtension("x-occurrenceCount", queryParameter.getParameterOccurrenceCount());
+            schema.addExtension("x-sampleValues", queryParameter.getParameterSampleValues());
+            schema.addExtension("x-remarks", queryParameter.getParameterRemarks());
+            
+            parameter.setSchema(schema);
+            operation.addParameter(parameter);
+        }
+
+        // Add detailed response payloads
+        ApiResponse response = new ApiResponse();
+        response.setDescription("Successful response");
+        
+        Content content = new Content();
+        MediaType mediaType = new MediaType();
+        
+        Schema responseSchema = new Schema();
+        responseSchema.setType("object");
+        
+        // Add all response fields
+        for (ApiDefinition.ResponsePayload responsePayload : apiDefinition.getResponsePayloads()) {
+            responseSchema.addProperty("responseCode", new StringProperty().description(responsePayload.getResponseFieldDescription()));
+            responseSchema.addProperty("responseSegmentLevel", new StringProperty().description(responsePayload.getResponseSegmentLevel()));
+            responseSchema.addProperty("responseElementName", new StringProperty().description(responsePayload.getResponseElementName()));
+            responseSchema.addProperty("responseNLSField", new StringProperty().description(responsePayload.getResponseNLSField()));
+            responseSchema.addProperty("responseTechnicalName", new StringProperty().description(responsePayload.getResponseTechnicalName()));
+            responseSchema.addProperty("responseMandatory", new StringProperty().description(responsePayload.getResponseMandatory()));
+            responseSchema.addProperty("responseDescription", new StringProperty().description(responsePayload.getResponseDescription()));
+            responseSchema.addProperty("responseObjectType", new StringProperty().description(responsePayload.getResponseObjectType()));
+            responseSchema.addProperty("responseOccurrenceCount", new StringProperty().description(responsePayload.getResponseOccurrenceCount()));
+            responseSchema.addProperty("responseSampleValues", new StringProperty().description(responsePayload.getResponseSampleValues()));
+            responseSchema.addProperty("responseRemarks", new StringProperty().description(responsePayload.getResponseRemarks()));
+        }
+        
+        mediaType.setSchema(responseSchema);
+        content.addMediaType("application/json", mediaType);
+        
+        response.setContent(content);
+        operation.addResponse("200", response);
+        
+        // Error responses (400, 404, 500)
+        operation.addResponse("400", createErrorResponse("Bad Request"));
+        operation.addResponse("404", createErrorResponse("Not Found"));
+        operation.addResponse("500", createErrorResponse("Internal Server Error"));
+        
+        pathItem.setGet(operation); // Assuming a GET request
+        openApi.getPaths().put(apiDefinition.getSapiUrl(), pathItem);
+    }
+
+    // Convert the OpenApiSpec object to YAML
+    StringWriter writer = new StringWriter();
+    yaml.dump(openApi, writer);
+    return writer.toString(); // Return the YAML representation
+}
 
 }
