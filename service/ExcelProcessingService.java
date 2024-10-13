@@ -308,11 +308,13 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
     Yaml yaml = new Yaml(representer, options);
 
     // Constructing the OAS YAML structure
-    OpenApiSpec openApi = new OpenApiSpec(); 
+    OpenApiSpec openApi = new OpenApiSpec(); // Replace with your actual OpenApiSpec class
     openApi.setOpenapi("3.0.0");
-    openApi.setInfo(new Info("API Documentation", "This API allows users to interact with various functionalities.", "1.0.0")); 
+    openApi.setInfo(new Info("API Documentation", "This API allows users to interact with various functionalities.", "1.0.0")); // Assuming first item for info
 
     for (ApiDefinition apiDefinition : apiInfo) {
+        // Create a path item for each API definition
+        String sapiUrl = apiDefinition.getSapiUrl(); // Extracted URL for the path
         PathItem pathItem = new PathItem();
         Operation operation = new Operation();
         operation.setOperationId(apiDefinition.getApiUrnNumber());
@@ -389,6 +391,25 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
     StringWriter writer = new StringWriter();
     yaml.dump(openApi, writer);
     return writer.toString(); // Return the YAML representation
+}
+
+// Create error responses for various error codes
+private ApiResponse createErrorResponse(String description) {
+    ApiResponse response = new ApiResponse();
+    response.setDescription(description);
+    Content content = new Content();
+    MediaType mediaType = new MediaType();
+
+    Schema errorSchema = new Schema();
+    errorSchema.setType("object");
+    errorSchema.addProperty("code", new StringProperty().description("Error code."));
+    errorSchema.addProperty("message", new StringProperty().description("Error message."));
+
+    mediaType.setSchema(errorSchema);
+    content.addMediaType("application/json", mediaType);
+
+    response.setContent(content);
+    return response;
 }
 
 }
