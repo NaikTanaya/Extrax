@@ -220,6 +220,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.representer.Representer;
+
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public String convertToYaml(List<ApiDefinition> apiInfo) {
     // Configure YAML output options
     DumperOptions options = new DumperOptions();
@@ -251,10 +261,15 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
         Map<String, Object> pathItem = new HashMap<>();
         Map<String, Object> operation = new HashMap<>();
 
-        // Add operation-level fields
+        // Add API details
         operation.put("operationId", apiDefinition.getApiUrnNumber());
         operation.put("summary", apiDefinition.getFunctionalName());
         operation.put("description", apiDefinition.getDescription());
+        operation.put("method", apiDefinition.getMethod());
+        operation.put("version", apiDefinition.getVersion());
+        operation.put("apiUrnNumber", apiDefinition.getApiUrnNumber());
+        operation.put("technicalName", apiDefinition.getTechnicalName());
+        operation.put("cbApiId", apiDefinition.getCbApiId());
 
         // Handle query parameters
         if (apiDefinition.getQueryParameters() != null && !apiDefinition.getQueryParameters().isEmpty()) {
@@ -262,57 +277,49 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
             for (ApiDefinition.QueryParameter queryParameter : apiDefinition.getQueryParameters()) {
                 Map<String, Object> parameter = new HashMap<>();
                 parameter.put("name", queryParameter.getParameterCode());
-                parameter.put("in", "query");  // Assuming query parameters
-                parameter.put("required", queryParameter.getParameterMandatory().equalsIgnoreCase("yes"));
+                parameter.put("segmentLevel", queryParameter.getParameterSegmentLevel());
+                parameter.put("elementName", queryParameter.getParameterElementName());
                 parameter.put("description", queryParameter.getParameterFieldDescription());
+                parameter.put("NLSField", queryParameter.getParameterNLSField());
+                parameter.put("technicalName", queryParameter.getParameterTechnicalName());
+                parameter.put("mandatory", queryParameter.getParameterMandatory());
+                parameter.put("businessDescription", queryParameter.getParameterBusinessDescription());
+                parameter.put("objectType", queryParameter.getParameterObjectType());
+                parameter.put("occurrenceCount", queryParameter.getParameterOccurrenceCount());
+                parameter.put("sampleValues", queryParameter.getParameterSampleValues());
+                parameter.put("remarks", queryParameter.getParameterRemarks());
 
-                // Schema for the parameter (can be modified as per the real data types)
-                Map<String, Object> schema = new HashMap<>();
-                schema.put("type", "string");
-                parameter.put("schema", schema);
-
+                // Add to parameters list
                 parameters.add(parameter);
             }
-            operation.put("parameters", parameters);
+            operation.put("queryParameters", parameters);
         }
 
-        // Handle response section
-        Map<String, Object> responses = new HashMap<>();
-        Map<String, Object> successResponse = new HashMap<>();
-        successResponse.put("description", "Successful response");
-
-        // Content section with JSON response
-        Map<String, Object> content = new HashMap<>();
-        Map<String, Object> mediaType = new HashMap<>();
-        Map<String, Object> schema = new HashMap<>();
-        schema.put("type", "object");
-
-        // Add response properties from the response payloads
-        Map<String, Object> properties = new HashMap<>();
-        if (apiDefinition.getResponsePayloads() != null) {
+        // Handle response payloads
+        if (apiDefinition.getResponsePayloads() != null && !apiDefinition.getResponsePayloads().isEmpty()) {
+            List<Map<String, Object>> responses = new ArrayList<>();
             for (ApiDefinition.ResponsePayload responsePayload : apiDefinition.getResponsePayloads()) {
-                Map<String, Object> propertySchema = new HashMap<>();
-                propertySchema.put("type", "string");  // Adjust based on actual field types
-                propertySchema.put("description", responsePayload.getResponseFieldDescription());
-                properties.put(responsePayload.getResponseElementName(), propertySchema);
+                Map<String, Object> response = new HashMap<>();
+                response.put("code", responsePayload.getResponseCode());
+                response.put("segmentLevel", responsePayload.getResponseSegmentLevel());
+                response.put("elementName", responsePayload.getResponseElementName());
+                response.put("description", responsePayload.getResponseFieldDescription());
+                response.put("NLSField", responsePayload.getResponseNLSField());
+                response.put("technicalName", responsePayload.getResponseTechnicalName());
+                response.put("mandatory", responsePayload.getResponseMandatory());
+                response.put("responseDescription", responsePayload.getResponseDescription());
+                response.put("objectType", responsePayload.getResponseObjectType());
+                response.put("occurrenceCount", responsePayload.getResponseOccurrenceCount());
+                response.put("sampleValues", responsePayload.getResponseSampleValues());
+                response.put("remarks", responsePayload.getResponseRemarks());
+
+                // Add to responses list
+                responses.add(response);
             }
+            operation.put("responsePayloads", responses);
         }
 
-        schema.put("properties", properties);
-        mediaType.put("schema", schema);
-        content.put("application/json", mediaType);
-        successResponse.put("content", content);
-
-        responses.put("200", successResponse);
-
-        // Add common error responses (400, 404, 500)
-        responses.put("400", createErrorResponse("Bad Request"));
-        responses.put("404", createErrorResponse("Not Found"));
-        responses.put("500", createErrorResponse("Internal Server Error"));
-
-        operation.put("responses", responses);
-
-        // Assuming it's a GET request (adjust for other methods if needed)
+        // Assuming it's a GET request (adjust based on the method)
         pathItem.put(apiDefinition.getMethod().toLowerCase(), operation);
 
         // Add the pathItem to paths with the corresponding API URI
@@ -321,16 +328,11 @@ public String convertToYaml(List<ApiDefinition> apiInfo) {
 
     openApiSpec.put("paths", paths);
 
-    // Convert to YAML
+    // Convert the OpenAPI object to YAML
     StringWriter writer = new StringWriter();
     yaml.dump(openApiSpec, writer);
     return writer.toString();
 }
 
-private Map<String, Object> createErrorResponse(String description) {
-    Map<String, Object> errorResponse = new HashMap<>();
-    errorResponse.put("description", description);
-    return errorResponse;
-}
 
 }
