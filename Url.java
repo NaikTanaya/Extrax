@@ -32,3 +32,18 @@ components:
         responseCode:
           type: string
         # Add other properties as needed
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API YAML</title>
+</head>
+<body>
+    <h1>Generated OpenAPI Specification</h1>
+    <pre>{{ oasYaml }}</pre>
+</body>
+</html>
+
+  
