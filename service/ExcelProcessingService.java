@@ -1,13 +1,6 @@
-package com.example.api.service;
-
-import com.example.api.model.ApiDefinition;
-import org.apache.poi.ss.usermodel.*;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import org.springframework.core.io.ClassPathResource;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 @Service
 public class ExcelProcessingService {
@@ -58,21 +51,7 @@ public class ExcelProcessingService {
 
                 // Parse request parameters (only if in the REQ section)
                 if (parsingRequest) {
-                    ApiDefinition.QueryParameter queryParameter = new ApiDefinition.QueryParameter();
-                    queryParameter.setParameterCode(getCellValueAsString(row.getCell(0)));
-                    queryParameter.setParameterSegmentLevel(getCellValueAsString(row.getCell(1)));
-                    queryParameter.setParameterElementName(getCellValueAsString(row.getCell(2)));
-                    queryParameter.setParameterFieldDescription(getCellValueAsString(row.getCell(3)));
-                    queryParameter.setParameterNLSField(getCellValueAsString(row.getCell(4)));
-                    queryParameter.setParameterTechnicalName(getCellValueAsString(row.getCell(5)));
-                    queryParameter.setParameterMandatory(getCellValueAsString(row.getCell(6)));
-                    queryParameter.setParameterBusinessDescription(getCellValueAsString(row.getCell(7)));
-                    queryParameter.setParameterObjectType(getCellValueAsString(row.getCell(8)));
-                    queryParameter.setParameterOccurrenceCount(getCellValueAsString(row.getCell(9)));
-                    queryParameter.setParameterSampleValues(getCellValueAsString(row.getCell(10)));
-                    queryParameter.setParameterRemarks(getCellValueAsString(row.getCell(11)));
-
-                    // Add to the list if at least one field is filled
+                    ApiDefinition.QueryParameter queryParameter = createQueryParameter(row);
                     if (!isQueryParameterEmpty(queryParameter)) {
                         queryParameters.add(queryParameter);
                     }
@@ -80,31 +59,25 @@ public class ExcelProcessingService {
 
                 // Parse response parameters (only if in the RES section)
                 if (parsingResponse) {
-                    ApiDefinition.ResponsePayload responsePayload = new ApiDefinition.ResponsePayload();
-                    responsePayload.setResponseCode(getCellValueAsString(row.getCell(0)));
-                    responsePayload.setResponseSegmentLevel(getCellValueAsString(row.getCell(1)));
-                    responsePayload.setResponseElementName(getCellValueAsString(row.getCell(2)));
-                    responsePayload.setResponseFieldDescription(getCellValueAsString(row.getCell(3)));
-                    responsePayload.setResponseNLSField(getCellValueAsString(row.getCell(4)));
-                    responsePayload.setResponseTechnicalName(getCellValueAsString(row.getCell(5)));
-                    responsePayload.setResponseMandatory(getCellValueAsString(row.getCell(6)));
-                    responsePayload.setResponseDescription(getCellValueAsString(row.getCell(7)));
-                    responsePayload.setResponseObjectType(getCellValueAsString(row.getCell(8)));
-                    responsePayload.setResponseOccurrenceCount(getCellValueAsString(row.getCell(9)));
-                    responsePayload.setResponseSampleValues(getCellValueAsString(row.getCell(10)));
-                    responsePayload.setResponseRemarks(getCellValueAsString(row.getCell(11)));
-
-                    // Add to the list if at least one field is filled
+                    ApiDefinition.ResponsePayload responsePayload = createResponsePayload(row);
                     if (!isResponsePayloadEmpty(responsePayload)) {
                         responsePayloads.add(responsePayload);
                     }
                 }
             }
 
-            // Set the collected parameters to the API definition
+            // Set the collected parameters and populate the YAML template
             if (apiDefinition != null) {
                 apiDefinition.setQueryParameters(queryParameters);
                 apiDefinition.setResponsePayloads(responsePayloads);
+
+                // Load the YAML template from resources
+                String yamlTemplate = loadYamlTemplate();
+
+                // Replace placeholders in the YAML template
+                String finalYaml = populateYamlTemplate(yamlTemplate, apiDefinition);
+
+                apiDefinition.setYamlTemplate(finalYaml); // Store the final YAML with replaced values
                 apiDefinitions.add(apiDefinition);
             }
         }
@@ -112,71 +85,87 @@ public class ExcelProcessingService {
         return apiDefinitions;
     }
 
-    private void handleApiDetails(ApiDefinition apiDefinition, Row row) {
-        // Assuming the key is in the first column and the value in the second column for API metadata
-        String key = getCellValueAsString(row.getCell(0)).trim();
-        String value = getCellValueAsString(row.getCell(1)).trim();
+    private ApiDefinition.QueryParameter createQueryParameter(Row row) {
+        ApiDefinition.QueryParameter queryParameter = new ApiDefinition.QueryParameter();
+        queryParameter.setParameterCode(getCellValueAsString(row.getCell(0)));
+        queryParameter.setParameterSegmentLevel(getCellValueAsString(row.getCell(1)));
+        queryParameter.setParameterElementName(getCellValueAsString(row.getCell(2)));
+        queryParameter.setParameterFieldDescription(getCellValueAsString(row.getCell(3)));
+        queryParameter.setParameterNLSField(getCellValueAsString(row.getCell(4)));
+        queryParameter.setParameterTechnicalName(getCellValueAsString(row.getCell(5)));
+        queryParameter.setParameterMandatory(getCellValueAsString(row.getCell(6)));
+        queryParameter.setParameterBusinessDescription(getCellValueAsString(row.getCell(7)));
+        queryParameter.setParameterObjectType(getCellValueAsString(row.getCell(8)));
+        queryParameter.setParameterOccurrenceCount(getCellValueAsString(row.getCell(9)));
+        queryParameter.setParameterSampleValues(getCellValueAsString(row.getCell(10)));
+        queryParameter.setParameterRemarks(getCellValueAsString(row.getCell(11)));
+        return queryParameter;
+    }
 
-        switch (key) {
-            case "API URN (Unique Reference Number):":
-                apiDefinition.setApiUrnNumber(value);
-                break;
-            case "API Functional Name:":
-                apiDefinition.setFunctionalName(value);
-                break;
-            case "API Technical Name:":
-                apiDefinition.setTechnicalName(value);
-                break;
-            case "Method:":
-                apiDefinition.setMethod(value);
-                break;
-            case "API Version:":
-                apiDefinition.setVersion(value);
-                break;
-            case "Description:":
-                apiDefinition.setDescription(value);
-                break;
-            case "Core Banking API ID:":
-                apiDefinition.setCbApiId(value);
-                break;
-            case "Core Banking SAPI URI:":
-                apiDefinition.setSapiUrl(value);
-                break;
-            default:
-                break;  // Ignore any unrecognized keys
+    private ApiDefinition.ResponsePayload createResponsePayload(Row row) {
+        ApiDefinition.ResponsePayload responsePayload = new ApiDefinition.ResponsePayload();
+        responsePayload.setResponseCode(getCellValueAsString(row.getCell(0)));
+        responsePayload.setResponseSegmentLevel(getCellValueAsString(row.getCell(1)));
+        responsePayload.setResponseElementName(getCellValueAsString(row.getCell(2)));
+        responsePayload.setResponseFieldDescription(getCellValueAsString(row.getCell(3)));
+        responsePayload.setResponseNLSField(getCellValueAsString(row.getCell(4)));
+        responsePayload.setResponseTechnicalName(getCellValueAsString(row.getCell(5)));
+        responsePayload.setResponseMandatory(getCellValueAsString(row.getCell(6)));
+        responsePayload.setResponseDescription(getCellValueAsString(row.getCell(7)));
+        responsePayload.setResponseObjectType(getCellValueAsString(row.getCell(8)));
+        responsePayload.setResponseOccurrenceCount(getCellValueAsString(row.getCell(9)));
+        responsePayload.setResponseSampleValues(getCellValueAsString(row.getCell(10)));
+        responsePayload.setResponseRemarks(getCellValueAsString(row.getCell(11)));
+        return responsePayload;
+    }
+
+    // Load YAML template from resources
+    private String loadYamlTemplate() throws IOException {
+        ClassPathResource resource = new ClassPathResource("template.yaml");
+        return new String(Files.readAllBytes(Paths.get(resource.getURI())));
+    }
+
+    // Replace placeholders in the YAML template
+    private String populateYamlTemplate(String yamlTemplate, ApiDefinition apiDefinition) {
+        yamlTemplate = yamlTemplate.replace("${functionalName}", apiDefinition.getFunctionalName());
+        yamlTemplate = yamlTemplate.replace("${description}", apiDefinition.getDescription());
+        yamlTemplate = yamlTemplate.replace("${version}", apiDefinition.getVersion());
+
+        // Replace query parameters placeholder
+        String queryParams = buildQueryParametersYaml(apiDefinition.getQueryParameters());
+        yamlTemplate = yamlTemplate.replace("${queryParameters}", queryParams);
+
+        // Replace responses placeholder
+        String responsePayloads = buildResponsePayloadsYaml(apiDefinition.getResponsePayloads());
+        yamlTemplate = yamlTemplate.replace("${responses}", responsePayloads);
+
+        return yamlTemplate;
+    }
+
+    private String buildQueryParametersYaml(List<ApiDefinition.QueryParameter> queryParameters) {
+        StringBuilder queryYaml = new StringBuilder();
+        for (ApiDefinition.QueryParameter param : queryParameters) {
+            queryYaml.append("- name: ").append(param.getParameterCode()).append("\n")
+                     .append("  in: query\n")
+                     .append("  description: ").append(param.getParameterFieldDescription()).append("\n")
+                     .append("  required: ").append(param.getParameterMandatory().equalsIgnoreCase("yes")).append("\n")
+                     .append("  schema:\n")
+                     .append("    type: ").append(param.getParameterObjectType()).append("\n");
         }
+        return queryYaml.toString();
     }
 
-    // Check if all fields of the query parameter are empty
-    private boolean isQueryParameterEmpty(ApiDefinition.QueryParameter queryParameter) {
-        return queryParameter.getParameterCode().isEmpty() &&
-               queryParameter.getParameterSegmentLevel().isEmpty() &&
-               queryParameter.getParameterElementName().isEmpty() &&
-               queryParameter.getParameterFieldDescription().isEmpty() &&
-               queryParameter.getParameterNLSField().isEmpty() &&
-               queryParameter.getParameterTechnicalName().isEmpty() &&
-               queryParameter.getParameterMandatory().isEmpty() &&
-               queryParameter.getParameterBusinessDescription().isEmpty() &&
-               queryParameter.getParameterObjectType().isEmpty() &&
-               queryParameter.getParameterOccurrenceCount().isEmpty() &&
-               queryParameter.getParameterSampleValues().isEmpty() &&
-               queryParameter.getParameterRemarks().isEmpty();
-    }
-
-    // Check if all fields of the response payload are empty
-    private boolean isResponsePayloadEmpty(ApiDefinition.ResponsePayload responsePayload) {
-        return responsePayload.getResponseCode().isEmpty() &&
-               responsePayload.getResponseSegmentLevel().isEmpty() &&
-               responsePayload.getResponseElementName().isEmpty() &&
-               responsePayload.getResponseFieldDescription().isEmpty() &&
-               responsePayload.getResponseNLSField().isEmpty() &&
-               responsePayload.getResponseTechnicalName().isEmpty() &&
-               responsePayload.getResponseMandatory().isEmpty() &&
-               responsePayload.getResponseDescription().isEmpty() &&
-               responsePayload.getResponseObjectType().isEmpty() &&
-               responsePayload.getResponseOccurrenceCount().isEmpty() &&
-               responsePayload.getResponseSampleValues().isEmpty() &&
-               responsePayload.getResponseRemarks().isEmpty();
+    private String buildResponsePayloadsYaml(List<ApiDefinition.ResponsePayload> responsePayloads) {
+        StringBuilder responseYaml = new StringBuilder();
+        for (ApiDefinition.ResponsePayload payload : responsePayloads) {
+            responseYaml.append(payload.getResponseCode()).append(":\n")
+                        .append("  description: ").append(payload.getResponseFieldDescription()).append("\n")
+                        .append("  content:\n")
+                        .append("    application/json:\n")
+                        .append("      schema:\n")
+                        .append("        type: object\n");
+        }
+        return responseYaml.toString();
     }
 
     private String getCellValueAsString(Cell cell) {
@@ -200,139 +189,4 @@ public class ExcelProcessingService {
                 return "";
         }
     }
-
-
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.representer.Representer;
-
-import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.representer.Representer;
-
-import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.representer.Representer;
-
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-public String convertToYaml(List<ApiDefinition> apiInfo) {
-    // Configure YAML output options
-    DumperOptions options = new DumperOptions();
-    options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-    options.setPrettyFlow(true);
-    options.setIndent(2);
-    options.setWidth(120);
-
-    Representer representer = new Representer();
-    representer.getPropertyUtils().setSkipMissingProperties(true); // Skip null properties in YAML
-    Yaml yaml = new Yaml(representer, options);
-
-    // Root OpenAPI structure
-    Map<String, Object> openApiSpec = new HashMap<>();
-    openApiSpec.put("openapi", "3.0.0");
-
-    // Info section
-    Map<String, String> info = new HashMap<>();
-    info.put("title", "API Documentation");
-    info.put("description", "Generated API Documentation");
-    info.put("version", "1.0.0");
-    openApiSpec.put("info", info);
-
-    // Paths section
-    Map<String, Object> paths = new HashMap<>();
-
-    // Loop through the parsed API definitions
-    for (ApiDefinition apiDefinition : apiInfo) {
-        Map<String, Object> pathItem = new HashMap<>();
-        Map<String, Object> operation = new HashMap<>();
-
-        // Add API details
-        operation.put("operationId", apiDefinition.getApiUrnNumber());
-        operation.put("summary", apiDefinition.getFunctionalName());
-        operation.put("description", apiDefinition.getDescription());
-        operation.put("method", apiDefinition.getMethod());
-        operation.put("version", apiDefinition.getVersion());
-        operation.put("apiUrnNumber", apiDefinition.getApiUrnNumber());
-        operation.put("technicalName", apiDefinition.getTechnicalName());
-        operation.put("cbApiId", apiDefinition.getCbApiId());
-
-        // Handle query parameters
-        if (apiDefinition.getQueryParameters() != null && !apiDefinition.getQueryParameters().isEmpty()) {
-            List<Map<String, Object>> parameters = new ArrayList<>();
-            for (ApiDefinition.QueryParameter queryParameter : apiDefinition.getQueryParameters()) {
-                Map<String, Object> parameter = new HashMap<>();
-                parameter.put("name", queryParameter.getParameterCode());
-                parameter.put("segmentLevel", queryParameter.getParameterSegmentLevel());
-                parameter.put("elementName", queryParameter.getParameterElementName());
-                parameter.put("description", queryParameter.getParameterFieldDescription());
-                parameter.put("NLSField", queryParameter.getParameterNLSField());
-                parameter.put("technicalName", queryParameter.getParameterTechnicalName());
-                parameter.put("mandatory", queryParameter.getParameterMandatory());
-                parameter.put("businessDescription", queryParameter.getParameterBusinessDescription());
-                parameter.put("objectType", queryParameter.getParameterObjectType());
-                parameter.put("occurrenceCount", queryParameter.getParameterOccurrenceCount());
-                parameter.put("sampleValues", queryParameter.getParameterSampleValues());
-                parameter.put("remarks", queryParameter.getParameterRemarks());
-
-                // Add to parameters list
-                parameters.add(parameter);
-            }
-            operation.put("queryParameters", parameters);
-        }
-
-        // Handle response payloads
-        if (apiDefinition.getResponsePayloads() != null && !apiDefinition.getResponsePayloads().isEmpty()) {
-            List<Map<String, Object>> responses = new ArrayList<>();
-            for (ApiDefinition.ResponsePayload responsePayload : apiDefinition.getResponsePayloads()) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("code", responsePayload.getResponseCode());
-                response.put("segmentLevel", responsePayload.getResponseSegmentLevel());
-                response.put("elementName", responsePayload.getResponseElementName());
-                response.put("description", responsePayload.getResponseFieldDescription());
-                response.put("NLSField", responsePayload.getResponseNLSField());
-                response.put("technicalName", responsePayload.getResponseTechnicalName());
-                response.put("mandatory", responsePayload.getResponseMandatory());
-                response.put("responseDescription", responsePayload.getResponseDescription());
-                response.put("objectType", responsePayload.getResponseObjectType());
-                response.put("occurrenceCount", responsePayload.getResponseOccurrenceCount());
-                response.put("sampleValues", responsePayload.getResponseSampleValues());
-                response.put("remarks", responsePayload.getResponseRemarks());
-
-                // Add to responses list
-                responses.add(response);
-            }
-            operation.put("responsePayloads", responses);
-        }
-
-        // Assuming it's a GET request (adjust based on the method)
-        pathItem.put(apiDefinition.getMethod().toLowerCase(), operation);
-
-        // Add the pathItem to paths with the corresponding API URI
-        paths.put(apiDefinition.getSapiUrl(), pathItem);
-    }
-
-    openApiSpec.put("paths", paths);
-
-    // Convert the OpenAPI object to YAML
-    StringWriter writer = new StringWriter();
-    yaml.dump(openApiSpec, writer);
-    return writer.toString();
-}
-
-
 }
