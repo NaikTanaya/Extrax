@@ -1,8 +1,8 @@
 package com.example.api.controller;
 
-import com.example.api.model.ApiDefinition;
 import com.example.api.service.ExcelProcessingService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -10,9 +10,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 
 @Controller
 @RequestMapping("/api/excel")
@@ -36,47 +35,68 @@ public class FileController {
         }
 
         try {
-            // Call the method in the ExcelProcessingService that handles the Excel processing
-            List<ApiDefinition> apiInfo = excelProcessingService.parseExcelFile(file);
-
-            // Debugging the parsed API info
-            System.out.println("Parsed API Info: " + apiInfo.size());
+            // Process the uploaded file and extract API details
+            List<ApiDefinition> apiInfo = excelProcessingService.handleApiDetails(file);
 
             if (apiInfo.isEmpty()) {
                 model.addAttribute("message", "No API data parsed from the file.");
-                return "error";  // Render the error.html page if no data is found
-            } else {
-                // Iterate through the parsed API info for debugging
-                for (ApiDefinition def : apiInfo) {
-                    System.out.println("API URN: " + def.getApiUrnNumber());
-
-                    // Print out details of query parameters
-                    if (def.getQueryParameters() != null) {
-                        for (ApiDefinition.QueryParameter qp : def.getQueryParameters()) {
-                            System.out.println("Query Param: " + qp.getParameterElementName());
-                        }
-                    }
-
-                    // Print out details of response payloads
-                    if (def.getResponsePayloads() != null) {
-                        for (ApiDefinition.ResponsePayload rp : def.getResponsePayloads()) {
-                            System.out.println("Response Payload: " + rp.getResponseElementName());
-                        }
-                    }
-
-                    // Generate OAS YAML from the parsed API info
-                    excelProcessingService.generateOasFromTemplate(def);
-                }
+                return "error";
             }
 
-            // Add success message to the model
-            model.addAttribute("message", "API data parsed and YAML generated successfully!");
-            return "success";  // Render the success.html page
+            // Load the OAS YAML template
+            String oasTemplate = loadYamlTemplate();
 
+            // Use the parsed API information to replace placeholders in the OAS template
+            String filledYaml = fillYamlTemplate(oasTemplate, apiInfo);
+
+            // Add the filled YAML to the model to display it
+            model.addAttribute("oasYaml", filledYaml);
+
+            return "displayOas";  // Renders the displayOas.html to show the YAML
         } catch (IOException e) {
-            model.addAttribute("message", "Error processing file: " + e.getMessage());
-            return "error";  // Render the error.html page if an exception occurs
+            model.addAttribute("message", "Error processing the file: " + e.getMessage());
+            return "error";
         }
     }
-}
 
+    // Helper method to load the OAS YAML template from classpath
+    private String loadYamlTemplate() throws IOException {
+        ClassPathResource resource = new ClassPathResource("templates/oas_template.yaml");
+        return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    }
+
+    // Helper method to replace placeholders in the OAS template
+    private String fillYamlTemplate(String oasTemplate, List<ApiDefinition> apiInfo) {
+        // Replace placeholders in oasTemplate using data from apiInfo
+        // Example of how you might replace placeholders:
+        ApiDefinition api = apiInfo.get(0);  // Assume one API definition
+        return oasTemplate
+                .replace("{{API_URN}}", api.getApiUrnNumber())
+                .replace("{{API_FUNCTIONAL_NAME}}", api.getFunctionalName())
+                .replace("{{API_VERSION}}", api.getVersion())
+                .replace("{{QUERY_PARAMETERS}}", formatQueryParameters(api.getQueryParameters()))
+                .replace("{{RESPONSE_PAYLOADS}}", formatResponsePayloads(api.getResponsePayloads()));
+    }
+
+    // Helper method to format query parameters for YAML
+    private String formatQueryParameters(List<ApiDefinition.QueryParameter> queryParameters) {
+        StringBuilder builder = new StringBuilder();
+        for (ApiDefinition.QueryParameter param : queryParameters) {
+            builder.append("  - name: ").append(param.getParameterElementName()).append("\n")
+                   .append("    description: ").append(param.getParameterFieldDescription()).append("\n")
+                   .append("    required: ").append(param.getParameterMandatory()).append("\n");
+        }
+        return builder.toString();
+    }
+
+    // Helper method to format response payloads for YAML
+    private String formatResponsePayloads(List<ApiDefinition.ResponsePayload> responsePayloads) {
+        StringBuilder builder = new StringBuilder();
+        for (ApiDefinition.ResponsePayload payload : responsePayloads) {
+            builder.append("  - name: ").append(payload.getResponseElementName()).append("\n")
+                   .append("    description: ").append(payload.getResponseFieldDescription()).append("\n")
+                   .append("    required: ").append(payload.getResponseMandatory()).append("\n");
+        }
+        return builder.toString();
+    }
+}
