@@ -189,4 +189,31 @@ public class ExcelProcessingService {
                 return "";
         }
     }
+
+      private void saveYamlToFile(String yamlContent, String outputFileName) throws IOException {
+        File file = new File(outputFileName);
+        try (FileWriter fileWriter = new FileWriter(file)) {
+            fileWriter.write(yamlContent);
+        }
+    }
+
+    // Modify your logic to call this after populating the YAML template
+    public List<ApiDefinition> parseExcelFile(MultipartFile file) throws IOException {
+        // Your existing parsing logic...
+
+        // After populating the YAML template with values
+        String finalYaml = populateYamlTemplate(yamlTemplate, apiDefinition);
+
+        // Save the final YAML to a file
+        String outputFileName = "output.yaml";  // You can choose the file name
+        saveYamlToFile(finalYaml, outputFileName);
+
+        // Store final YAML to the API definition if needed
+        apiDefinition.setYamlTemplate(finalYaml);
+        
+        // Add apiDefinition to list
+        apiDefinitions.add(apiDefinition);
+
+        return apiDefinitions;
+    }
 }
