@@ -1,9 +1,6 @@
 package com.example.api.util;
 
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,7 +36,7 @@ public class ExcelToYamlConverter {
                     continue;
                 }
                 // Map API details to the appropriate fields
-                apiDetails.put(row.getCell(0).getStringCellValue(), row.getCell(1).getStringCellValue());
+                apiDetails.put(row.getCell(0).getStringCellValue(), getCellValueAsString(row.getCell(1)));
             } else {
                 // Extract Request/Response Headers
                 if (row.getCell(0).getStringCellValue().contains("REQ/RSP")) {
@@ -73,7 +70,7 @@ public class ExcelToYamlConverter {
     private List<String> getHeaders(Row row) {
         List<String> headers = new ArrayList<>();
         for (int i = 0; i < row.getPhysicalNumberOfCells(); i++) {
-            headers.add(row.getCell(i).getStringCellValue());
+            headers.add(getCellValueAsString(row.getCell(i)));
         }
         return headers;
     }
@@ -81,7 +78,7 @@ public class ExcelToYamlConverter {
     private Map<String, String> getRowData(List<String> headers, Row row) {
         Map<String, String> rowData = new HashMap<>();
         for (int i = 0; i < headers.size(); i++) {
-            rowData.put(headers.get(i), row.getCell(i).getStringCellValue());
+            rowData.put(headers.get(i), getCellValueAsString(row.getCell(i)));
         }
         return rowData;
     }
@@ -156,38 +153,11 @@ public class ExcelToYamlConverter {
         return sb.toString();
     }
 
-     public void extractApiDetails(String filePath) {
-        try (Workbook workbook = WorkbookFactory.create(new File(filePath))) {
-            Sheet sheet = workbook.getSheetAt(0); // Read the first sheet
-            
-            for (Row row : sheet) {
-                // Skip empty rows
-                if (row == null || isRowEmpty(row)) {
-                    continue;
-                }
-
-                // Read API details or request/response parameters
-                for (Cell cell : row) {
-                    String cellValue = getCellValueAsString(cell);
-                    // Process cellValue as needed
-                    System.out.println(cellValue); // For debugging or processing
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private boolean isRowEmpty(Row row) {
-        for (int i = 0; i < row.getPhysicalNumberOfCells(); i++) {
-            if (row.getCell(i) != null && row.getCell(i).getCellType() != CellType.BLANK) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private String getCellValueAsString(Cell cell) {
+        if (cell == null) {
+            return "";  // Return empty string if the cell is null
+        }
+
         switch (cell.getCellType()) {
             case STRING:
                 return cell.getStringCellValue();
