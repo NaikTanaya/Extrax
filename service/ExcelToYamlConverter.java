@@ -1,191 +1,173 @@
-package com.example.api.util;
+package com.example.apidetails.service;
 
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 
-@Component
-public class ExcelToYamlConverter {
+@Service
+public class ApiDetailsExtractorService {
 
-    public String convertToYaml(MultipartFile file) throws IOException {
-        // Load the YAML template from resources
-        String yamlTemplate = new String(getClass().getClassLoader().getResourceAsStream("oas_template.yaml").readAllBytes());
-
-        // Load the Excel file from MultipartFile
-        Workbook workbook = new XSSFWorkbook(file.getInputStream());
-        Sheet sheet = workbook.getSheetAt(0);
-
-        Map<String, String> apiDetails = new HashMap<>();
-        List<Map<String, String>> queryParameters = new ArrayList<>();
-        List<Map<String, String>> bodyParameters = new ArrayList<>();
-        List<Map<String, String>> responseProperties = new ArrayList<>();
-        boolean inRequestSection = false;
+    public String extractApiDetails(MultipartFile file) throws IOException {
+        Map<String, String> apiDetails = new LinkedHashMap<>();
+        List<Map<String, String>> requestParameters = new ArrayList<>();
+        Map<String, Map<String, Object>> responseProperties = new LinkedHashMap<>();
         List<String> headers = new ArrayList<>();
+        boolean inRequestSection = false;
 
-        for (Row row : sheet) {
-            // Skip empty rows
-            if (row.getPhysicalNumberOfCells() == 0) continue;
+        try (InputStream inputStream = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(inputStream)) {
 
-            // Debugging: Print each row index and content
-            System.out.print("Row " + row.getRowNum() + ": ");
-            for (Cell cell : row) {
-                System.out.print(getCellValueAsString(cell) + " | ");
-            }
-            System.out.println();
-
-            if (!inRequestSection) {
-                // Handle API details extraction until 'request' is encountered
-                if (row.getCell(0).getStringCellValue().toLowerCase().contains("request")) {
-                    inRequestSection = true;
-                    continue;
-                }
-                // Map API details to the appropriate fields
-                apiDetails.put(row.getCell(0).getStringCellValue(), getCellValueAsString(row.getCell(1)));
-            } else {
-                // Extract Request/Response Headers
-                if (row.getCell(0).getStringCellValue().contains("REQ/RSP")) {
-                    headers = getHeaders(row);
+            Sheet sheet = workbook.getSheetAt(0);
+            for (Row row : sheet) {
+                if (isRowEmpty(row)) {
                     continue;
                 }
 
-                // Handle Request Parameters (REQ)
-                if (row.getCell(0).getStringCellValue().equalsIgnoreCase("REQ")) {
-                    Map<String, String> rowData = getRowData(headers, row);
-                    if (rowData.get("SegmentLevel").equalsIgnoreCase("query")) {
-                        queryParameters.add(rowData);
-                    } else if (rowData.get("SegmentLevel").equalsIgnoreCase("body")) {
-                        bodyParameters.add(rowData);
+                // Extract API details
+                if (!inRequestSection) {
+                    if (containsCellValue(row, "request")) {
+                        inRequestSection = true;
+                        continue;
+                    }
+                    String key = getCellValue(row, 0);
+                    String value = getCellValue(row, 1);
+                    if (value != null) {
+                        apiDetails.put(key, value);
+                    }
+                } else {
+                    // Extract request and response headers and parameters
+                    if (containsCellValue(row, "REQ/RSP")) {
+                        headers = extractHeaders(row);
+                    } else if (containsCellValue(row, "REQ")) {
+                        requestParameters.add(mapHeadersToValues(headers, row));
+                    } else if (containsCellValue(row, "RSP")) {
+                        responseProperties.put(mapHeadersToValues(headers, row).get("ElementName"), 
+                                generateResponseSchema(mapHeadersToValues(headers, row)));
                     }
                 }
-
-                // Handle Response Properties (RSP)
-                if (row.getCell(0).getStringCellValue().equalsIgnoreCase("RSP")) {
-                    responseProperties.add(getRowData(headers, row));
-                }
             }
         }
 
-        workbook.close();
-
-        // Debugging: Print extracted details
-        System.out.println("API Details: " + apiDetails);
-        System.out.println("Query Parameters: " + queryParameters);
-        System.out.println("Body Parameters: " + bodyParameters);
-        System.out.println("Response Properties: " + responseProperties);
-
-        // Populate the template with the extracted values
-        return populateTemplate(yamlTemplate, apiDetails, queryParameters, bodyParameters, responseProperties);
+        return generateOasYaml(apiDetails, requestParameters, responseProperties);
     }
 
-    private List<String> getHeaders(Row row) {
-        List<String> headers = new ArrayList<>();
+    private boolean isRowEmpty(Row row) {
+        return row == null || row.getPhysicalNumberOfCells() == 0;
+    }
+
+    private boolean containsCellValue(Row row, String value) {
         for (int i = 0; i < row.getPhysicalNumberOfCells(); i++) {
-            headers.add(getCellValueAsString(row.getCell(i)));
+            if (row.getCell(i).toString().toLowerCase().contains(value.toLowerCase())) {
+                return true;
+            }
         }
+        return false;
+    }
+
+    private String getCellValue(Row row, int cellIndex) {
+        return row.getCell(cellIndex) != null ? row.getCell(cellIndex).toString() : null;
+    }
+
+    private List<String> extractHeaders(Row row) {
+        List<String> headers = new ArrayList<>();
+        row.forEach(cell -> headers.add(cell.toString()));
         return headers;
     }
 
-    private Map<String, String> getRowData(List<String> headers, Row row) {
-        Map<String, String> rowData = new HashMap<>();
+    private Map<String, String> mapHeadersToValues(List<String> headers, Row row) {
+        Map<String, String> keyValueMap = new LinkedHashMap<>();
         for (int i = 0; i < headers.size(); i++) {
-            rowData.put(headers.get(i), getCellValueAsString(row.getCell(i)));
+            String cellValue = getCellValue(row, i);
+            if (cellValue != null) {
+                keyValueMap.put(headers.get(i), cellValue);
+            }
         }
-        return rowData;
+        return keyValueMap;
     }
 
-    private String getCellValueAsString(Cell cell) {
-        if (cell == null) return "";
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString(); // Convert to string as needed
-                } else {
-                    return String.valueOf(cell.getNumericCellValue()); // Convert numeric to string
-                }
-            case BOOLEAN:
-                return String.valueOf(cell.getBooleanCellValue());
-            case FORMULA:
-                return cell.getCellFormula();
-            case BLANK:
-                return "";
-            default:
-                return "Unknown cell type";
-        }
+    private Map<String, Object> generateResponseSchema(Map<String, String> responseDetails) {
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", responseDetails.getOrDefault("ObjectType", "string"));
+        schema.put("description", responseDetails.getOrDefault("FieldDescription", "No description provided"));
+        schema.put("sampleValue", responseDetails.getOrDefault("SampleValues", ""));
+        schema.put("remarks", responseDetails.getOrDefault("Remarks", ""));
+        return schema;
     }
 
-    private String populateTemplate(String template, Map<String, String> apiDetails,
-                                    List<Map<String, String>> queryParams,
-                                    List<Map<String, String>> bodyParams,
-                                    List<Map<String, String>> responseProps) {
-        // Replace placeholders with actual values from the Excel file
-        template = template.replace("${urn}", apiDetails.getOrDefault("API URN", "default"))
-                .replace("${functionalName}", apiDetails.getOrDefault("Functional Name", "API Title"))
-                .replace("${technicalName}", apiDetails.getOrDefault("Technical Name", "defaultOperationId"))
-                .replace("${method}", apiDetails.getOrDefault("Method", "get").toLowerCase())
-                .replace("${version}", apiDetails.getOrDefault("Version", "1.0.0"))
-                .replace("${description}", apiDetails.getOrDefault("Description", "API Description"));
+    private String generateOasYaml(Map<String, String> apiDetails,
+                                   List<Map<String, String>> requestParameters,
+                                   Map<String, Map<String, Object>> responseProperties) throws IOException {
 
-        // Generate query and body parameters
-        String paramsYaml = generateParamsYaml(queryParams, "query");
-        String bodyYaml = generateParamsYaml(bodyParams, "body");
+        Map<String, Object> oasTemplate = new LinkedHashMap<>();
+        oasTemplate.put("openapi", "3.0.0");
+        oasTemplate.put("info", Map.of(
+                "title", apiDetails.getOrDefault("Functional Name", "API Title"),
+                "version", apiDetails.getOrDefault("Version", "1.0.0"),
+                "description", apiDetails.getOrDefault("Description", "API Description")
+        ));
 
-        // Generate response properties
-        String responseYaml = generateResponseYaml(responseProps);
-
-        return template.replace("${parameters}", paramsYaml)
-                       .replace("${requestBody}", bodyYaml)
-                       .replace("${responseProperties}", responseYaml);
-    }
-
-    private String generateParamsYaml(List<Map<String, String>> params, String paramType) {
-        StringBuilder sb = new StringBuilder();
-
-        // Iterate through all parameters and append them to the YAML
-        for (Map<String, String> param : params) {
-            sb.append("- name: ").append(param.get("ElementName")).append("\n")
-              .append("  in: ").append(paramType).append("\n")
-              .append("  description: ").append(param.get("FieldDescription")).append("\n")
-              .append("  required: ").append(param.get("Mandatory").equalsIgnoreCase("y")).append("\n")
-              .append("  schema:\n")
-              .append("    type: ").append(param.get("ObjectType")).append("\n")
-              .append("    example: ").append(param.get("SampleValues")).append("\n")
-              .append("  nlsField: ").append(param.get("NLSField")).append("\n")  // Include NLSField
-              .append("  technicalName: ").append(param.get("TechnicalName")).append("\n")  // Include TechnicalName
-              .append("  businessDescription: ").append(param.get("BusinessDescription")).append("\n")  // Include BusinessDescription
-              .append("  occurrenceCount: ").append(param.get("OccurrenceCount")).append("\n")  // Include OccurrenceCount
-              .append("  remarks: ").append(param.get("Remarks")).append("\n");  // Include Remarks
+        List<Map<String, Object>> parametersList = new ArrayList<>();
+        for (Map<String, String> param : requestParameters) {
+            parametersList.add(Map.of(
+                    "name", param.getOrDefault("ElementName", "parameter"),
+                    "in", "query",
+                    "required", "Y".equalsIgnoreCase(param.getOrDefault("Mandatory", "N")),
+                    "schema", Map.of(
+                            "type", param.getOrDefault("ObjectType", "string"),
+                            "description", param.getOrDefault("BusinessDescription", "No description available"),
+                            "nlsField", param.getOrDefault("NLSField", ""),
+                            "technicalName", param.getOrDefault("TechnicalName", ""),
+                            "occurrenceCount", param.getOrDefault("OccurrenceCount", ""),
+                            "sampleValues", param.getOrDefault("SampleValues", ""),
+                            "remarks", param.getOrDefault("Remarks", "")
+                    )
+            ));
         }
 
-        return sb.toString();
-    }
+        oasTemplate.put("paths", Map.of(
+                "/" + apiDetails.getOrDefault("API URN", "default") + "/", Map.of(
+                        apiDetails.getOrDefault("Method", "get").toLowerCase(), Map.of(
+                                "summary", apiDetails.getOrDefault("Functional Name", "No summary provided"),
+                                "description", apiDetails.getOrDefault("Description", "No description provided"),
+                                "operationId", apiDetails.getOrDefault("Technical Name", "defaultOperationId"),
+                                "parameters", parametersList,
+                                "responses", Map.of(
+                                        "200", Map.of(
+                                                "description", "Successful response",
+                                                "content", Map.of(
+                                                        "application/json", Map.of(
+                                                                "schema", Map.of(
+                                                                        "type", "object",
+                                                                        "properties", responseProperties
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                )
+                        )
+                )
+        ));
 
-    private String generateResponseYaml(List<Map<String, String>> responseProps) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("  content:\n")
-          .append("    application/json:\n")
-          .append("      schema:\n")
-          .append("        type: object\n")
-          .append("        properties:\n");
+        // Save the OAS YAML to a file
+        DumperOptions options = new DumperOptions();
+        options.setPrettyFlow(true);
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        Yaml yaml = new Yaml(options);
 
-        // Iterate through all response properties and append them to the YAML
-        for (Map<String, String> prop : responseProps) {
-            sb.append("          ").append(prop.get("ElementName")).append(":\n")
-              .append("            type: ").append(prop.get("ObjectType")).append("\n")
-              .append("            description: ").append(prop.get("FieldDescription")).append("\n")
-              .append("            example: ").append(prop.get("SampleValues")).append("\n")
-              .append("            nlsField: ").append(prop.get("NLSField")).append("\n")  // Include NLSField
-              .append("            technicalName: ").append(prop.get("TechnicalName")).append("\n")  // Include TechnicalName
-              .append("            businessDescription: ").append(prop.get("BusinessDescription")).append("\n")  // Include BusinessDescription
-              .append("            occurrenceCount: ").append(prop.get("OccurrenceCount")).append("\n")  // Include OccurrenceCount
-              .append("            remarks: ").append(prop.get("Remarks")).append("\n");  // Include Remarks
+        try (FileWriter writer = new FileWriter("oasfile.yaml")) {
+            yaml.dump(oasTemplate, writer);
         }
 
-        return sb.toString();
+        return yaml.dump(oasTemplate);
     }
 }
