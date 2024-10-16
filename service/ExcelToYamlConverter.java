@@ -5,23 +5,20 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
 
 @Component
 public class ExcelToYamlConverter {
 
-    public String convertToYaml(String filePath) throws IOException {
-        // Load the YAML template
-        String yamlTemplate = new String(Files.readAllBytes(Paths.get("src/main/resources/oas_template.yaml")));
+    public String convertToYaml(MultipartFile file) throws IOException {
+        // Load the YAML template from resources
+        String yamlTemplate = new String(getClass().getClassLoader().getResourceAsStream("oas_template.yaml").readAllBytes());
 
-        // Load the Excel file
-        FileInputStream excelFile = new FileInputStream(filePath);
-        Workbook workbook = new XSSFWorkbook(excelFile);
+        // Load the Excel file from MultipartFile
+        Workbook workbook = new XSSFWorkbook(file.getInputStream());
         Sheet sheet = workbook.getSheetAt(0);
 
         Map<String, String> apiDetails = new HashMap<>();
