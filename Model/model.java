@@ -1,19 +1,27 @@
 openapi: 3.0.0
 info:
-  title: ${title}
-  version: 1.0.0
-  description: ${description}
+  title: "${functionalName}"
+  version: "${version}"
+  description: "${description}"
 paths:
   /${urn}/:
     ${method}:
-      summary: ${summary}
-      description: ${description}
-      operationId: ${operationId}
+      summary: "${functionalName} Summary"
+      operationId: "${technicalName}"
+      description: "${description}"
       parameters:
         ${parameters}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ${requestBody}
       responses:
         '200':
-          description: Successful response
+          description: "Successful response"
           content:
             application/json:
               schema:
