@@ -3,6 +3,7 @@ package com.example.api.service;
 import com.example.api.util.ExcelToYamlConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
@@ -12,8 +13,7 @@ public class ApiService {
     @Autowired
     private ExcelToYamlConverter excelToYamlConverter;
 
-    public String generateOasYaml(String filePath) throws IOException {
-        // Call the method to convert Excel data to YAML using the template
-        return excelToYamlConverter.convertToYaml(filePath);
+    public String generateOasYaml(MultipartFile file) throws IOException {
+        return excelToYamlConverter.convertToYaml(file);
     }
 }
