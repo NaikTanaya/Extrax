@@ -1,36 +1,37 @@
-package com.example.api.controller;
+package com.example.apidetails.controller;
 
-import com.example.api.service.ApiService;
+import com.example.apidetails.service.ApiDetailsExtractorService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
 @Controller
-public class ApiController {
+public class ApiDetailsController {
 
     @Autowired
-    private ApiService apiService;
+    private ApiDetailsExtractorService apiDetailsExtractorService;
 
-    // Serve the HTML form
-    @RequestMapping("/upload-form")
-    public String uploadForm() {
-        return "form.html";
+    @GetMapping("/")
+    public String showForm() {
+        return "form";
     }
 
-    // Handle the file upload
-    @PostMapping("/upload-excel")
-    public ResponseEntity<String> handleFileUpload(@RequestParam("file") MultipartFile file) {
+    @PostMapping("/upload")
+    public String handleFileUpload(@RequestParam("file") MultipartFile file, Model model) {
         try {
-            String yamlContent = apiService.generateOasYaml(file);
-            return ResponseEntity.ok(yamlContent);
+            String result = apiDetailsExtractorService.extractApiDetails(file);
+            model.addAttribute("result", result);
+            model.addAttribute("message", "File processed successfully!");
         } catch (IOException e) {
-            return ResponseEntity.status(500).body("Error processing the Excel file: " + e.getMessage());
+            model.addAttribute("message", "An error occurred while processing the file.");
+            e.printStackTrace();
         }
+        return "result";
     }
 }
