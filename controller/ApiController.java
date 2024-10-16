@@ -35,3 +35,24 @@ public class ApiDetailsController {
         return "result";
     }
 }
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAS YAML Result</title>
+</head>
+<body>
+    <h2>Generated OpenAPI Specification</h2>
+    <pre>{{result}}</pre>
+    <p>{{message}}</p>
+</body>
+</html>
+
+    
