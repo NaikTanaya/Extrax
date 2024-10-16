@@ -1,6 +1,7 @@
 package com.example.api.util;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,6 +29,13 @@ public class ExcelToYamlConverter {
         for (Row row : sheet) {
             // Skip empty rows
             if (row.getPhysicalNumberOfCells() == 0) continue;
+
+            // Debugging: Print each row index and content
+            System.out.print("Row " + row.getRowNum() + ": ");
+            for (Cell cell : row) {
+                System.out.print(getCellValueAsString(cell) + " | ");
+            }
+            System.out.println();
 
             if (!inRequestSection) {
                 // Handle API details extraction until 'request' is encountered
@@ -63,6 +71,12 @@ public class ExcelToYamlConverter {
 
         workbook.close();
 
+        // Debugging: Print extracted details
+        System.out.println("API Details: " + apiDetails);
+        System.out.println("Query Parameters: " + queryParameters);
+        System.out.println("Body Parameters: " + bodyParameters);
+        System.out.println("Response Properties: " + responseProperties);
+
         // Populate the template with the extracted values
         return populateTemplate(yamlTemplate, apiDetails, queryParameters, bodyParameters, responseProperties);
     }
@@ -81,6 +95,28 @@ public class ExcelToYamlConverter {
             rowData.put(headers.get(i), getCellValueAsString(row.getCell(i)));
         }
         return rowData;
+    }
+
+    private String getCellValueAsString(Cell cell) {
+        if (cell == null) return "";
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString(); // Convert to string as needed
+                } else {
+                    return String.valueOf(cell.getNumericCellValue()); // Convert numeric to string
+                }
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                return cell.getCellFormula();
+            case BLANK:
+                return "";
+            default:
+                return "Unknown cell type";
+        }
     }
 
     private String populateTemplate(String template, Map<String, String> apiDetails,
@@ -151,31 +187,5 @@ public class ExcelToYamlConverter {
         }
 
         return sb.toString();
-    }
-
-    private String getCellValueAsString(Cell cell) {
-        if (cell == null) {
-            return "";  // Return empty string if the cell is null
-        }
-
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                // Check if the cell is a date
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString(); // Convert to string as needed
-                } else {
-                    return String.valueOf(cell.getNumericCellValue()); // Convert numeric to string
-                }
-            case BOOLEAN:
-                return String.valueOf(cell.getBooleanCellValue());
-            case FORMULA:
-                return cell.getCellFormula();
-            case BLANK:
-                return "";
-            default:
-                return "Unknown cell type";
-        }
     }
 }
