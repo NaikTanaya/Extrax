@@ -155,4 +155,57 @@ public class ExcelToYamlConverter {
 
         return sb.toString();
     }
+
+     public void extractApiDetails(String filePath) {
+        try (Workbook workbook = WorkbookFactory.create(new File(filePath))) {
+            Sheet sheet = workbook.getSheetAt(0); // Read the first sheet
+            
+            for (Row row : sheet) {
+                // Skip empty rows
+                if (row == null || isRowEmpty(row)) {
+                    continue;
+                }
+
+                // Read API details or request/response parameters
+                for (Cell cell : row) {
+                    String cellValue = getCellValueAsString(cell);
+                    // Process cellValue as needed
+                    System.out.println(cellValue); // For debugging or processing
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private boolean isRowEmpty(Row row) {
+        for (int i = 0; i < row.getPhysicalNumberOfCells(); i++) {
+            if (row.getCell(i) != null && row.getCell(i).getCellType() != CellType.BLANK) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String getCellValueAsString(Cell cell) {
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                // Check if the cell is a date
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString(); // Convert to string as needed
+                } else {
+                    return String.valueOf(cell.getNumericCellValue()); // Convert numeric to string
+                }
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                return cell.getCellFormula();
+            case BLANK:
+                return "";
+            default:
+                return "Unknown cell type";
+        }
+    }
 }
