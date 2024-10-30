@@ -1,85 +1,94 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 import requests
 import json
 import time
+import re
 
-# Step 1: Set up Selenium WebDriver with Chrome
-driver = webdriver.Chrome()
+# Set the path to your ChromeDriver binary
+binary_path = '/path/to/chromedriver'  # Replace with your actual path
 
-# Step 2: Navigate to the Agora platform and log in if necessary
-driver.get("https://agora-0.hsbc-auth-aaf-cert.svc.aplapg02.shp.apet.pre-prod.aws.cloud.hsbc")
+# Step 1: Set up Chrome options
+options = Options()
+options.add_argument("--start-maximized")  # This will maximize the window on startup
 
-# Optional: Add login steps here
-time.sleep(5)  # Adjust timing as necessary
+# Step 2: Start Selenium WebDriver with options
+svc = Service(executable_path=binary_path, options=options)
+driver = webdriver.Chrome(service=svc)
 
-# Step 3: Extract the AgoraUserToken from cookies
-cookies = driver.get_cookies()
-agora_user_token = None
-for cookie in cookies:
-    if cookie['name'] == 'AgoraUserToken':
-        agora_user_token = cookie['value']
+# Step 3: Navigate to the Agora Homepage
+driver.get('https://your-agora-url.com/')  # Replace with actual Agora homepage URL
+time.sleep(3)  # Wait for page load
+
+# Step 4: Click on the button to navigate to 'aaf-configs'
+aaf_configs_button = driver.find_element(By.XPATH, '//*[text()="AAF Configs"]')  # Adjust XPath as needed
+aaf_configs_button.click()
+time.sleep(3)  # Wait for page load
+
+# Step 5: Click "Approved Configurations" to trigger network request for approved data
+approved_config_button = driver.find_element(By.XPATH, '//*[text()="Approved Configurations"]')  # Adjust XPath as needed
+approved_config_button.click()
+time.sleep(3)  # Wait for response to load in the network
+
+# Step 6: Capture network logs to find teamTechnicalId and make requests for approved configurations
+logs = driver.get_log("performance")
+teamTechnicalId = None
+approved_data = None
+
+for entry in logs:
+    message = entry['message']
+    
+    # Locate the request for approved configurations
+    if 'approved-aaf-configs' in message:
+        # Extract teamTechnicalId from the request URL
+        teamTechnicalId_match = re.search(r'teamtechnicalid=([^&]+)', message)
+        if teamTechnicalId_match:
+            teamTechnicalId = teamTechnicalId_match.group(1)
+            # Extract response JSON for approved configurations
+            response_data_match = re.search(r'"response":\{"status":200,.*?("body":\{.*?\})', message)
+            if response_data_match:
+                approved_data = response_data_match.group(1)
+            break
+
+# Convert the approved data to a JSON object
+if approved_data:
+    approved_data_json = json.loads(approved_data.replace('\\', ''))
+    # Store Approved Configurations Data
+    with open('approved_configs.json', 'w') as file:
+        json.dump(approved_data_json, file, indent=2)
+else:
+    print("Approved Configurations data not found in response")
+
+# Step 7: Click "Draft Configurations" to load draft data
+draft_config_button = driver.find_element(By.XPATH, '//*[text()="Draft Configurations"]')  # Adjust XPath as needed
+draft_config_button.click()
+time.sleep(3)  # Wait for response to load in the network
+
+# Step 8: Capture network logs again to find draft configurations
+logs = driver.get_log("performance")
+draft_data = None
+
+for entry in logs:
+    message = entry['message']
+    
+    # Locate the request for draft configurations
+    if 'draft-aaf-config' in message:
+        # Extract response JSON for draft configurations
+        response_data_match = re.search(r'"response":\{"status":200,.*?("body":\{.*?\})', message)
+        if response_data_match:
+            draft_data = response_data_match.group(1)
         break
 
-# Check if AgoraUserToken was found
-if agora_user_token:
-    print("Extracted AgoraUserToken:", agora_user_token)
+# Convert the draft data to a JSON object
+if draft_data:
+    draft_data_json = json.loads(draft_data.replace('\\', ''))
+    # Store Draft Configurations Data
+    with open('draft_configs.json', 'w') as file:
+        json.dump(draft_data_json, file, indent=2)
 else:
-    print("AgoraUserToken not found in cookies.")
-    driver.quit()
-    exit()
+    print("Draft Configurations data not found in response")
 
-# Step 4: Define the base URL for the API
-base_url = "https://agora-0.hsbc-auth-aaf-cert.svc.aplapg02.shp.apet.pre-prod.aws.cloud.hsbc/api/v1"
-config_types = ["approved", "active", "draft"]
-api_urls = {config_type: f"{base_url}/{config_type}-aaf-configs" for config_type in config_types}
-
-# Step 5: Set up headers with the token for API requests
-headers = {
-    "Authorization": f"Bearer {agora_user_token}",
-    "Content-Type": "application/json"
-}
-
-# Step 6: Make an initial API call to get the payload containing teamTechnicalId
-# You need to replace '/initial-endpoint' with the actual endpoint that returns the payload with teamTechnicalId
-initial_url = f"{base_url}/initial-endpoint"  # Adjust this endpoint
-response = requests.get(initial_url, headers=headers)
-
-if response.status_code == 200:
-    initial_data = response.json()
-    # Assuming teamTechnicalId is returned in the payload under a specific key
-    team_technical_id = initial_data.get('teamTechnicalId', None)
-    print("Extracted teamTechnicalId:", team_technical_id)
-else:
-    print("Failed to fetch initial data to get teamTechnicalId.")
-    driver.quit()
-    exit()
-
-# Step 7: Update API URLs to include teamTechnicalId if it was extracted
-if team_technical_id:
-    api_urls_with_id = {config_type: f"{url}?teamTechnicalId={team_technical_id}" for config_type, url in api_urls.items()}
-else:
-    print("No teamTechnicalId available; cannot construct API URLs.")
-    driver.quit()
-    exit()
-
-# Step 8: Fetch data from each API URL
-config_data_map = {}
-
-for config_type, url in api_urls_with_id.items():
-    response = requests.get(url, headers=headers)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        data = response.json()  # Assuming JSON format
-        config_data_map[config_type] = data
-    else:
-        print(f"Failed to fetch {config_type} configurations: {response.status_code} - {response.text}")
-
-# Close the Selenium driver
+# Cleanup
 driver.quit()
-
-# Step 9: Display the fetched data
-for config_type, entries in config_data_map.items():
-    print(f"\nConfiguration Type: {config_type}")
-    print(json.dumps(entries, indent=2))
