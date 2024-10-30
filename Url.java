@@ -28,10 +28,12 @@ approved_configs_button.click()
 team_technical_id_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".team-technical-id-selector")))  # Adjust selector
 team_technical_id = team_technical_id_element.text  # Or use `get_attribute("value")` if in an attribute
 
-# Step 4: Define the API URL for each configuration type
-base_url = "https://your-agora-platform-url.com"
+# Step 4: Define the API URL for each configuration type directly without a base URL
 config_types = ["approved", "active", "draft"]
-api_urls = {config_type: f"{base_url}/{config_type}-aaf-configs?teamTechnicalId={team_technical_id}" for config_type in config_types}
+api_urls = {
+    config_type: f"{config_type}-aaf-configs?teamTechnicalId={team_technical_id}"
+    for config_type in config_types
+}
 
 # Get session cookies from Selenium to maintain the authenticated session
 session_cookies = driver.get_cookies()
@@ -40,44 +42,47 @@ for cookie in session_cookies:
     session.cookies.set(cookie['name'], cookie['value'])
 
 # Step 5: Define regex for name validation
-api_pattern = re.compile(r'^cbil-([a-zA-Z]*-){5}[a-zA-Z]*-v[1-9]$')
+api_pattern = re.compile(r'^[a-z]{3}-[a-z]{3}-v[0-9]+$')  # Adjust based on your actual naming conventions
 
 # Step 6: Fetch data, validate, and store in a dictionary
 config_data_map = {}  # Dictionary to hold data for each config type
 
 for config_type, url in api_urls.items():
     response = session.get(url)
-    data = response.json()  # Assuming JSON format
+    
+    # Check if the request was successful
+    if response.status_code == 200:
+        data = response.json()  # Assuming JSON format
 
-    # Create a list to hold entries for this config type
-    config_data_map[config_type] = []
+        # Create a list to hold entries for this config type
+        config_data_map[config_type] = []
 
-    # Parse each configuration entry
-    for entry in data:
-        # Extract relevant fields
-        technical_id = entry.get('technicalId')
-        name = entry.get('name')
-        created_at = entry.get('createdAt')
-        created_by = entry.get('createdBy')
-        updated_at = entry.get('updatedAt', None)
-        updated_by = entry.get('updatedBy', None)
+        # Parse each configuration entry
+        for entry in data:
+            # Extract relevant fields
+            technical_id = entry.get('technicalId')
+            name = entry.get('name')
+            created_at = entry.get('createdAt')
+            created_by = entry.get('createdBy')
+            updated_at = entry.get('updatedAt', None)
+            updated_by = entry.get('updatedBy', None)
 
-        # Validate name syntax
-        name_valid = bool(api_pattern.match(name))
+            # Validate name syntax
+            name_valid = bool(api_pattern.match(name))
 
-        # Store the entry data in a dictionary
-        entry_data = {
-            "Technical ID": technical_id,
-            "Name": name,
-            "Created At": created_at,
-            "Created By": created_by,
-            "Updated At": updated_at,
-            "Updated By": updated_by,
-            "Name Valid": name_valid
-        }
+            # Store the entry data in a dictionary
+            entry_data = {
+                "Technical ID": technical_id,
+                "Name": name,
+                "Created At": created_at,
+                "Created By": created_by,
+                "Updated At": updated_at,
+                "Updated By": updated_by,
+                "Name Valid": name_valid
+            }
 
-        # Append the entry data to the list for the config type
-        config_data_map[config_type].append(entry_data)
+            # Append the entry data to the list for the config type
+            config_data_map[config_type].append(entry_data)
 
 # Step 7: Close the Selenium driver as it is no longer needed
 driver.quit()
