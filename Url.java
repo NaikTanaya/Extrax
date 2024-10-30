@@ -1,65 +1,45 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import requests
 import re
 
-# Set up Selenium WebDriver (e.g., Chrome, Firefox)
-driver = webdriver.Chrome()
-wait = WebDriverWait(driver, 10)
-
-# Step 1: Navigate to the Agora platform and log in if necessary
-driver.get("https://your-agora-platform-url.com")
-
-# Add login steps if required
-# username = driver.find_element(By.ID, "username")
-# password = driver.find_element(By.ID, "password")
-# username.send_keys("your-username")
-# password.send_keys("your-password")
-# login_button = driver.find_element(By.ID, "loginButton")
-# login_button.click()
-
-# Step 2: Navigate to the Approved Configurations page
-approved_configs_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[text()='APPROVED CONFIGURATIONS']")))
-approved_configs_button.click()
-
-# Step 3: Locate the `teamTechnicalId` element or extract from a relevant HTML element
-team_technical_id_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".team-technical-id-selector")))  # Adjust selector
-team_technical_id = team_technical_id_element.text  # Or use `get_attribute("value")` if in an attribute
-
-# Step 4: Define the API URL for each configuration type directly without a base URL
+# Define base URL and team technical ID
+base_url = "https://your-agora-platform-url.com/api.v1"  # Use the actual base URL
+team_technical_id = "your-team-technical-id"  # Set your actual team technical ID
 config_types = ["approved", "active", "draft"]
+
+# Define the API endpoints for each configuration type
 api_urls = {
-    config_type: f"{config_type}-aaf-configs?teamTechnicalId={team_technical_id}"
+    config_type: f"{base_url}/{config_type}-aaf-config?teamtechnicalid={team_technical_id}"
     for config_type in config_types
 }
 
-# Get session cookies from Selenium to maintain the authenticated session
-session_cookies = driver.get_cookies()
-session = requests.Session()
-for cookie in session_cookies:
-    session.cookies.set(cookie['name'], cookie['value'])
+# Define headers and cookies
+headers = {
+    "Accept": "application/json",  # or other headers if needed
+    "User-Agent": "your-user-agent-string"  # Optionally specify if needed
+}
+cookies = {
+    "agorausertoken": "your-agora-user-token"  # Replace with the actual token from network tab
+}
 
-# Step 5: Define regex for name validation
-api_pattern = re.compile(r'^cbil-([a-zA-Z]*-){5}[a-zA-Z]*-v[1-9]$')  # Adjust based on your actual naming conventions
+# Define regex for name validation
+api_pattern = re.compile(r'^cbil-([a-zA-Z]*-){5}[a-zA-Z]*-v[1-9]$')
 
-# Step 6: Fetch data, validate, and store in a dictionary
-config_data_map = {}  # Dictionary to hold data for each config type
+# Dictionary to store configuration data for each type
+config_data_map = {}
 
+# Fetch data for each configuration type
 for config_type, url in api_urls.items():
-    response = session.get(url)
+    response = requests.get(url, headers=headers, cookies=cookies)
     
     # Check if the request was successful
     if response.status_code == 200:
-        data = response.json()  # Assuming JSON format
-
-        # Create a list to hold entries for this config type
+        data = response.json()  # Parse the JSON response
+        
+        # List to hold entries for this configuration type
         config_data_map[config_type] = []
-
-        # Parse each configuration entry
+        
+        # Iterate over each entry in the data
         for entry in data:
-            # Extract relevant fields
             technical_id = entry.get('technicalId')
             name = entry.get('name')
             created_at = entry.get('createdAt')
@@ -83,12 +63,10 @@ for config_type, url in api_urls.items():
 
             # Append the entry data to the list for the config type
             config_data_map[config_type].append(entry_data)
+    else:
+        print(f"Failed to retrieve data for {config_type}. Status code: {response.status_code}")
 
-# Step 7: Close the Selenium driver as it is no longer needed
-driver.quit()
-
-# The data is now stored in `config_data_map`
-# Example of accessing data:
+# Output the collected data
 for config_type, entries in config_data_map.items():
     print(f"\nConfiguration Type: {config_type}")
     for entry in entries:
