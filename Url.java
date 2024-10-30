@@ -42,7 +42,7 @@ for cookie in session_cookies:
     session.cookies.set(cookie['name'], cookie['value'])
 
 # Step 5: Define regex for name validation
-api_pattern = re.compile(r'^[a-z]{3}-[a-z]{3}-v[0-9]+$')  # Adjust based on your actual naming conventions
+api_pattern = re.compile(r'^cbil-([a-zA-Z]*-){5}[a-zA-Z]*-v[1-9]$')  # Adjust based on your actual naming conventions
 
 # Step 6: Fetch data, validate, and store in a dictionary
 config_data_map = {}  # Dictionary to hold data for each config type
