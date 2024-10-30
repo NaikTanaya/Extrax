@@ -1,176 +1,90 @@
-import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import requests
+import re
 
-def extract_api_details(file_path):
-    # Load the Excel file
-    sheet_data = pd.read_excel(file_path, header=None)
-    
-    api_details = {}
-    headers = []  # To store header keys for request/response parameters
-    in_request_section = False  # Flag to indicate if we are in the request section
+# Set up Selenium WebDriver (e.g., Chrome, Firefox)
+driver = webdriver.Chrome()
+wait = WebDriverWait(driver, 10)
 
-    # Iterate over the rows of the sheet
-    for index, row in sheet_data.iterrows():
-        # Skip empty rows
-        if row.isnull().all():
-            continue
+# Step 1: Navigate to the Agora platform and log in if necessary
+driver.get("https://your-agora-platform-url.com")
 
-        # If we are not in the request section, extract API details
-        if not in_request_section:
-            # Check for the end of API details when "request" is encountered
-            if any('request' in str(cell).lower() for cell in row):
-                in_request_section = True  # Set the flag to true
-                continue  # Move to next row after finding "request"
+# Add login steps if required
+# username = driver.find_element(By.ID, "username")
+# password = driver.find_element(By.ID, "password")
+# username.send_keys("your-username")
+# password.send_keys("your-password")
+# login_button = driver.find_element(By.ID, "loginButton")
+# login_button.click()
 
-            # Extract API details as key-value pairs
-            key = row[2]
-            value = row[3] if len(row) > 1 else None
-            if pd.notna(value):  # Only store non-null values
-                api_details[key] = value
-                print(f"API Detail: {key} = {value}")  # Debug print for API details
-        
-        # If we are in the request section, handle headers and parameters
-        else:
-            # If the row contains "REQ/RSP" as a header
-            if any('REQ/RSP' in str(cell) for cell in row):
-                headers = row.dropna().tolist()  # Store all non-null values in this row as headers
-                continue  # Move to the next row after storing headers
-            
-            # If the row has 'REQ'
-            if any('REQ' in str(cell) for cell in row):
-                # Create a key-value mapping using stored headers
-                key_value_dict = {headers[i]: row[i] for i in range(len(headers)) 
-                                  if i < len(row) and pd.notna(row[i])}
-                print(f"Request Parameter: {key_value_dict}")  # Debug print for request parameters
-            
-            # If the row has 'RSP'
-            if any('RSP' in str(cell) for cell in row):
-                # Create a key-value mapping using stored headers
-                key_value_dict = {headers[i]: row[i] for i in range(len(headers)) 
-                                  if i < len(row) and pd.notna(row[i])}
-                print(f"Response Property: {key_value_dict}")  # Debug print for response properties
+# Step 2: Navigate to the Approved Configurations page
+approved_configs_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[text()='APPROVED CONFIGURATIONS']")))
+approved_configs_button.click()
 
-    return api_details
+# Step 3: Locate the `teamTechnicalId` element or extract from a relevant HTML element
+team_technical_id_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".team-technical-id-selector")))  # Adjust selector
+team_technical_id = team_technical_id_element.text  # Or use `get_attribute("value")` if in an attribute
 
-# Replace 'demo.xlsx' with the actual file path of your Excel file
-file_path = 'C:\\Users\\sai\\Downloads\\demo.xlsx'
-api_details = extract_api_details(file_path)
+# Step 4: Define the API URL for each configuration type
+base_url = "https://your-agora-platform-url.com"
+config_types = ["approved", "active", "draft"]
+api_urls = {config_type: f"{base_url}/{config_type}-aaf-configs?teamTechnicalId={team_technical_id}" for config_type in config_types}
 
+# Get session cookies from Selenium to maintain the authenticated session
+session_cookies = driver.get_cookies()
+session = requests.Session()
+for cookie in session_cookies:
+    session.cookies.set(cookie['name'], cookie['value'])
 
+# Step 5: Define regex for name validation
+api_pattern = re.compile(r'^cbil-([a-zA-Z]*-){5}[a-zA-Z]*-v[1-9]$')
 
+# Step 6: Fetch data, validate, and store in a dictionary
+config_data_map = {}  # Dictionary to hold data for each config type
 
-------------------------------------------------------------------------------------------------------------------------------
-# whole code
+for config_type, url in api_urls.items():
+    response = session.get(url)
+    data = response.json()  # Assuming JSON format
 
+    # Create a list to hold entries for this config type
+    config_data_map[config_type] = []
 
-import pandas as pd
-import yaml
+    # Parse each configuration entry
+    for entry in data:
+        # Extract relevant fields
+        technical_id = entry.get('technicalId')
+        name = entry.get('name')
+        created_at = entry.get('createdAt')
+        created_by = entry.get('createdBy')
+        updated_at = entry.get('updatedAt', None)
+        updated_by = entry.get('updatedBy', None)
 
-def extract_api_details(file_path):
-    # Load the Excel file
-    sheet_data = pd.read_excel(file_path, header=None)
-    
-    api_details = {}
-    headers = []  # To store header keys for request/response parameters
-    request_parameters = []
-    response_properties = {}
-    in_request_section = False  # Flag to indicate if we are in the request section
+        # Validate name syntax
+        name_valid = bool(api_pattern.match(name))
 
-    # Iterate over the rows of the sheet
-    for index, row in sheet_data.iterrows():
-        # Skip empty rows
-        if row.isnull().all():
-            continue
-
-        # If we are not in the request section, extract API details
-        if not in_request_section:
-            # Check for the end of API details when "request" is encountered
-            if any('request' in str(cell).lower() for cell in row):
-                in_request_section = True  # Set the flag to true
-                continue  # Move to next row after finding "request"
-
-            # Extract API details as key-value pairs
-            key = row[0]
-            value = row[1] if len(row) > 1 else None
-            if pd.notna(value):  # Only store non-null values
-                api_details[key] = value
-                print(f"API Detail: {key} = {value}")  # Debug print for API details
-        
-        # If we are in the request section, handle headers and parameters
-        else:
-            # If the row contains "REQ/RSP" as a header
-            if any('REQ/RSP' in str(cell) for cell in row):
-                headers = row.dropna().tolist()  # Store all non-null values in this row as headers
-                continue  # Move to the next row after storing headers
-            
-            # If the row has 'REQ'
-            if any('REQ' in str(cell) for cell in row):
-                # Create a key-value mapping using stored headers
-                key_value_dict = {headers[i]: row[i] for i in range(len(headers)) 
-                                  if i < len(row) and pd.notna(row[i])}
-                request_parameters.append(key_value_dict)
-                print(f"Request Parameter: {key_value_dict}")  # Debug print for request parameters
-            
-            # If the row has 'RSP'
-            if any('RSP' in str(cell) for cell in row):
-                # Create a key-value mapping using stored headers
-                key_value_dict = {headers[i]: row[i] for i in range(len(headers)) 
-                                  if i < len(row) and pd.notna(row[i])}
-                response_properties.update(key_value_dict)
-                print(f"Response Property: {key_value_dict}")  # Debug print for response properties
-
-    # Generate OAS YAML structure
-    oas = {
-        'openapi': '3.0.0',
-        'info': {
-            'title': api_details.get('api functional name', 'API Title'),
-            'version': '1.0.0',
-            'description': api_details.get('api description', 'API Description'),
-        },
-        'paths': {
-            f"/{api_details.get('api urn', 'default')}/": {
-                api_details.get('api type', 'get').lower(): {
-                    'summary': api_details.get('api summary', 'No summary provided'),
-                    'description': api_details.get('api description', 'No description provided'),
-                    'operationId': api_details.get('api technical name', 'defaultOperationId'),
-                    'parameters': [
-                        {
-                            'name': param['api name'],
-                            'in': 'query',
-                            'required': param.get('NLS FIELD YES/NO', 'n') == 'y',
-                            'schema': {
-                                'type': param['OBJECT TYPE']
-                            }
-                        } for param in request_parameters if 'api name' in param
-                    ],
-                    'responses': {
-                        '200': {
-                            'description': 'Successful response',
-                            'content': {
-                                'application/json': {
-                                    'schema': {
-                                        'type': 'object',
-                                        'properties': {
-                                            rsp_key: {
-                                                'type': 'array' if response_properties.get(rsp_key) == 'Array' else 'string'
-                                            } for rsp_key in response_properties.keys()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        # Store the entry data in a dictionary
+        entry_data = {
+            "Technical ID": technical_id,
+            "Name": name,
+            "Created At": created_at,
+            "Created By": created_by,
+            "Updated At": updated_at,
+            "Updated By": updated_by,
+            "Name Valid": name_valid
         }
-    }
 
-    # Print the generated OAS for verification
-    print("\nGenerated OAS YAML:")
-    print(yaml.dump(oas, sort_keys=False))
+        # Append the entry data to the list for the config type
+        config_data_map[config_type].append(entry_data)
 
-    return api_details
+# Step 7: Close the Selenium driver as it is no longer needed
+driver.quit()
 
-# Replace 'demo.xlsx' with the actual file path of your Excel file
-file_path = 'C:\\Users\\sai\\Downloads\\demo.xlsx'
-api_details = extract_api_details(file_path)
-
+# The data is now stored in `config_data_map`
+# Example of accessing data:
+for config_type, entries in config_data_map.items():
+    print(f"\nConfiguration Type: {config_type}")
+    for entry in entries:
+        print(entry)
