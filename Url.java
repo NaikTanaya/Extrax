@@ -45,18 +45,18 @@ try:
 
     teamtechnicalid = None  # Initialize the variable to store the technical ID
 
-    # Step 5: Extract the technical ID from the logs
-     # Step 6: Extract the technical ID from the logs by checking the request URL
-    for entry in logs:
-        log_message = json.loads(entry["message"])["message"]
-        if "Network.requestWillBeSent" in log_message["method"]:
-            request_url = log_message["params"]["request"]["url"]
-            if 'approved-aaf-configs' in request_url:
-                # Extract the teamtechnicalid from the end of the request URL
-                teamtechnicalid = request_url.split("teamtechnicalid=")[-1]
-                print(f'Technical ID: {teamtechnicalid}')
-                break  # Exit the loop if the ID is found
+   for entry in logs:
+    log_message = json.loads(entry["message"])["message"]
+    # Ensure this log entry is a network request and has the required fields
+    if log_message.get("method") == "Network.requestWillBeSent" and "request" in log_message["params"]:
+        request_url = log_message["params"]["request"].get("url", "")
+        if 'approved-aaf-configs' in request_url:
+            # Extract the teamtechnicalid from the end of the request URL
+            teamtechnicalid = request_url.split("teamtechnicalid=")[-1]
+            print(f'Technical ID: {teamtechnicalid}')
+            break  # Exit the loop if the ID is found
 
+    
     # Step 6: If the technical ID is found, make a call to the new URL
     if teamtechnicalid:
         new_url = f'https://your-agora-url.com/approved-aaf-configs?teamtechnicalid={teamtechnicalid}'  # Construct the new URL
