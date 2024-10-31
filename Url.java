@@ -3,6 +3,7 @@ import re
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
+import json
 
 # Function to get the teamtechnicalid from the approved configurations page
 def get_teamtechnicalid():
@@ -42,7 +43,7 @@ def get_json_response(teamtechnicalid):
     
     # Check for a successful response
     if response.status_code == 200:
-        return response.json()  # Return JSON response
+        return response.json()  # Return JSON response as a dictionary
     else:
         print(f"Failed to retrieve data: {response.status_code}")
         return None
@@ -55,5 +56,10 @@ if __name__ == '__main__':
     # Step 2: Use the teamtechnicalid to get the JSON response
     if teamtechnicalid:
         json_response = get_json_response(teamtechnicalid)
-        print("Approved Configurations JSON Response:")
-        print(json_response)
+
+        # Store the JSON response
+        if json_response:
+            # Here you can either print or save the JSON response to a file
+            with open('approved_configs.json', 'w') as json_file:
+                json.dump(json_response, json_file, indent=4)  # Save to a file
+            print("Approved Configurations JSON Response stored successfully.")
