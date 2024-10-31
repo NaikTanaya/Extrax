@@ -21,6 +21,16 @@ try:
     # Step 1: Load the Agora homepage
     driver.get('https://your-agora-url.com')  # Replace with the actual URL
 
+     username_input = driver.find_element(By.NAME, 'username')  # Replace with the actual input name or XPath
+    password_input = driver.find_element(By.NAME, 'password')  # Replace with the actual input name or XPath
+    login_button = driver.find_element(By.XPATH, '//button[@type="submit"]')  # Replace with the actual button XPath
+
+    username_input.send_keys('your_username')  # Replace with your actual username
+    password_input.send_keys('your_password')  # Replace with your actual password
+    login_button.click()
+
+    
+
     # Step 2: Navigate directly to draft/list URL
     driver.get('https://your-agora-url.com/draft/list')  # Replace with the actual draft/list URL
 
