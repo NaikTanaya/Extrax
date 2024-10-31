@@ -1,92 +1,48 @@
-from seleniumwire import webdriver  # Import from selenium-wire to capture network requests
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-import json
-import time
+import requests
 import re
 
-# Step 1: Set up Chrome WebDriver with WebDriver Manager
+# Step 1: Make an initial request to load the homepage or draft/list page
+initial_url = "https://your-agora-url.com/aaf-configs/drafts/list"  # Replace with actual URL
+session = requests.Session()  # Use a session to handle cookies automatically
+response = session.get(initial_url)
 
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+# Step 2: Extract the AAF-AgoraUserToken from cookies
+aaf_token = session.cookies.get('AAF-AgoraUserToken')
 
-# Step 2: Navigate to Agora Homepage
-driver.get('https://your-agora-url.com/')  # Replace with the actual Agora homepage URL
-time.sleep(3)  # Wait for the page to load
+if not aaf_token:
+    print("AAF-AgoraUserToken not found in cookies!")
+    exit()
 
-# Step 3: Navigate to Drafts List URL
-driver.get('https://your-agora-url.com/aaf-configs/drafts/list')  # This page loads but doesn't give required details
-time.sleep(3)
+# Step 3: Manually construct the URL for the approved configurations
+# Assuming you already know the teamtechnicalid after clicking the span in the UI.
+# You may need to do another request to get the teamtechnicalid dynamically if not known.
+# Here's an example of what the request would look like:
+teamtechnicalid_pattern = r'teamtechnicalid=([^&]+)'
+approved_config_url = f"https://your-agora-url.com/api.v1/approved-aaf-configs?teamtechnicalid={teamtechnicalid}"  # Replace with the actual dynamic ID.
 
-# Step 4: Click "Approved Configurations" span
-approved_config_span = driver.find_element(By.XPATH, '//*[text()="Approved configurations"]')
-approved_config_span.click()
-time.sleep(3)  #
+# Step 4: Prepare headers for API requests
+headers = {
+    'Authorization': f'Bearer {aaf_token}',  # Depending on the API requirements, the token format might differ.
+    'Content-Type': 'application/json',
+}
 
-# Step 5: Intercept network requests for approved configurations
-approved_data = None
-headers_info = None
-teamtechnicalid = None
+# Step 5: Make the API call for Approved Configurations
+approved_response = session.get(approved_config_url, headers=headers)
 
-# Iterate through all captured network requests
-for request in driver.requests:
-    if 'approved-aaf-configs' in request.url:
-        # Capture teamtechnicalid from the URL
-        match = re.search(r'teamtechnicalid=([^&]+)', request.url)
-        if match:
-            teamtechnicalid = match.group(1)  # Extract the dynamic value of teamtechnicalid
-
-        # Capture dynamic values from headers
-        headers_info = {
-            "url": request.url,
-            "method": request.method,
-            "path": request.path,
-            "cookies": request.headers.get('Cookie', ''),
-            "user-agent": request.headers.get('User-Agent', ''),
-            "x-hsbc-request-correlation-id": request.headers.get('x-hsbc-request-correlation-id', ''),
-        }
-        
-        # Capture response JSON for approved configurations
-        if request.response:
-            approved_data = request.response.body.decode('utf-8')  # Decode response body
-        break  # Exit loop after capturing the necessary request
-
-# Step 6: Parse JSON for approved configurations if available and save
-if approved_data:
-    approved_data_json = json.loads(approved_data)  # Convert response body to JSON
-    with open('approved_configs.json', 'w') as file:
-        json.dump(approved_data_json, file, indent=2)  # Save JSON to file
+# Check if the response was successful
+if approved_response.status_code == 200:
+    approved_data = approved_response.json()
+    print("Approved Configurations Data:", approved_data)
 else:
-    print("Approved Configurations data not found.")
+    print(f"Failed to retrieve approved configurations: {approved_response.status_code} - {approved_response.text}")
 
-# Step 7: Click "Draft Configurations" button to load draft configurations data
-draft_config_button = driver.find_element(By.XPATH, '//*[text()="Draft Configurations"]')
-draft_config_button.click()  # Simulate clicking the button
-time.sleep(3)  # Wait for the new page to load
+# Optional: If you want to get Draft Configurations similarly, construct the URL and repeat
+draft_config_url = f"https://your-agora-url.com/api.v1/draft-aaf-config?teamtechnicalid={teamtechnicalid}"  # Replace with the actual dynamic ID.
+draft_response = session.get(draft_config_url, headers=headers)
 
-# Step 8: Capture network requests for draft configurations
-draft_data = None
-
-for request in driver.requests:
-    # Check for draft configurations and ensure it contains the same teamtechnicalid
-    if 'draft-aaf-config' in request.url and teamtechnicalid in request.url:
-        # Capture response JSON for draft configurations
-        if request.response:
-            draft_data = request.response.body.decode('utf-8')  # Decode response body
-        break  # Exit loop after capturing the necessary request
-
-# Step 9: Parse JSON for draft configurations if available and save
-if draft_data:
-    draft_data_json = json.loads(draft_data)  # Convert response body to JSON
-    with open('draft_configs.json', 'w') as file:
-        json.dump(draft_data_json, file, indent=2)  # Save JSON to file
+# Check if the response was successful
+if draft_response.status_code == 200:
+    draft_data = draft_response.json()
+    print("Draft Configurations Data:", draft_data)
 else:
-    print("Draft Configurations data not found.")
-
-# Step 10: Cleanup
-driver.quit()  # Close the WebDriver
-
-# Print captured headers (Optional)
-if headers_info:
-    print("Captured Headers Information:", headers_info)
+    print(f"Failed to retrieve draft configurations: {draft_response.status_code} - {draft_response.text}")
