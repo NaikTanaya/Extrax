@@ -56,12 +56,19 @@ try:
             print(f'Technical ID: {teamtechnicalid}')
             break  # Exit the loop if the ID is found
 
-           headers = log_message["params"].get("request", {}).get("headers", [])
-    if isinstance(headers, list):
-        for header in headers:
-            if header.get("name", "").lower() == "cookie":
-                cookie_value = header.get("value")
-                print(f'Cookie: {cookie_value}')
+# Retrieve all cookies
+cookies = driver.get_cookies()
+cookie_value = None
+
+# Find the specific cookie
+for cookie in cookies:
+    if cookie['name'] == 'your_cookie_name':  # Replace with the actual cookie name you're looking for
+        cookie_value = cookie['value']
+        print(f'Cookie: {cookie_value}')
+        break  # Stop if the cookie is found
+
+if not cookie_value:
+    print("Cookie not found.")
 
     
     # Step 6: If the technical ID is found, make a call to the new URL
