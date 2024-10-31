@@ -58,10 +58,11 @@ try:
 
                 if "headers" in log_message["params"]["request"]:
                 headers = log_message["params"]["request"]["headers"]
-                for header in headers:
-                    if header["name"].lower() == "cookie":
-                        cookie_value = header["value"]
-                        print(f'Cookie: {cookie_value}')
+                if isinstance(headers, list):
+                    for header in headers:
+                        if isinstance(header, dict) and header.get("name", "").lower() == "cookie":
+                            cookie_value = header.get("value")
+                            print(f'Cookie: {cookie_value}')
 
     
     # Step 6: If the technical ID is found, make a call to the new URL
