@@ -8,11 +8,8 @@ import time
 import re
 
 # Step 1: Set up Chrome WebDriver with WebDriver Manager
-options = Options()
-options.add_argument('--headless')  # Run in headless mode (no GUI)
-options.add_argument('--no-sandbox')
-options.add_argument('--disable-dev-shm-usage')
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 
 # Step 2: Navigate to Agora Homepage
 driver.get('https://your-agora-url.com/')  # Replace with the actual Agora homepage URL
@@ -22,9 +19,10 @@ time.sleep(3)  # Wait for the page to load
 driver.get('https://your-agora-url.com/aaf-configs/drafts/list')  # This page loads but doesn't give required details
 time.sleep(3)
 
-# Step 4: Navigate to Approved List URL
-driver.get('https://your-agora-url.com/aaf-configs/approved/list')  # This will allow capturing the necessary data
-time.sleep(3)
+# Step 4: Click "Approved Configurations" span
+approved_config_span = driver.find_element(By.XPATH, '//*[text()="Approved configurations"]')
+approved_config_span.click()
+time.sleep(3)  #
 
 # Step 5: Intercept network requests for approved configurations
 approved_data = None
