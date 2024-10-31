@@ -1,48 +1,59 @@
 import requests
 import re
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
 
-# Step 1: Make an initial request to load the homepage or draft/list page
-initial_url = "https://your-agora-url.com/aaf-configs/drafts/list"  # Replace with actual URL
-session = requests.Session()  # Use a session to handle cookies automatically
-response = session.get(initial_url)
+# Function to get the teamtechnicalid from the approved configurations page
+def get_teamtechnicalid():
+    # Initialize the WebDriver
+    driver = webdriver.Chrome()  # You can use webdriver-manager if desired
+    try:
+        # Step 1: Load the Agora homepage
+        driver.get('https://your-agora-url.com/')  # Replace with the actual URL
+        time.sleep(3)  # Wait for the page to load
 
-# Step 2: Extract the AAF-AgoraUserToken from cookies
-aaf_token = session.cookies.get('AAF-AgoraUserToken')
+        # Step 2: Click on the "Approved Configurations" span
+        approved_configs_span = driver.find_element(By.XPATH, '//*[text()="Approved Configurations"]')
+        approved_configs_span.click()
+        time.sleep(3)  # Wait for the network requests to settle
 
-if not aaf_token:
-    print("AAF-AgoraUserToken not found in cookies!")
-    exit()
+        # Step 3: Capture the teamtechnicalid from the request URL
+        teamtechnicalid = None
+        for request in driver.requests:
+            if 'approved-aaf-configs' in request.url:
+                # Capture teamtechnicalid from the URL
+                match = re.search(r'teamtechnicalid=([^&]+)', request.url)
+                if match:
+                    teamtechnicalid = match.group(1)
+                    print(f"Team Technical ID: {teamtechnicalid}")
+                    break
 
-# Step 3: Manually construct the URL for the approved configurations
-# Assuming you already know the teamtechnicalid after clicking the span in the UI.
-# You may need to do another request to get the teamtechnicalid dynamically if not known.
-# Here's an example of what the request would look like:
-teamtechnicalid_pattern = r'teamtechnicalid=([^&]+)'
-approved_config_url = f"https://your-agora-url.com/api.v1/approved-aaf-configs?teamtechnicalid={teamtechnicalid}"  # Replace with the actual dynamic ID.
+        return teamtechnicalid
 
-# Step 4: Prepare headers for API requests
-headers = {
-    'Authorization': f'Bearer {aaf_token}',  # Depending on the API requirements, the token format might differ.
-    'Content-Type': 'application/json',
-}
+    finally:
+        # Close the browser
+        driver.quit()
 
-# Step 5: Make the API call for Approved Configurations
-approved_response = session.get(approved_config_url, headers=headers)
+# Function to get JSON response from the endpoint
+def get_json_response(teamtechnicalid):
+    url = f'https://your-agora-url.com/approved-aaf-configs?teamtechnicalid={teamtechnicalid}'  # Replace with actual URL
+    response = requests.get(url)
+    
+    # Check for a successful response
+    if response.status_code == 200:
+        return response.json()  # Return JSON response
+    else:
+        print(f"Failed to retrieve data: {response.status_code}")
+        return None
 
-# Check if the response was successful
-if approved_response.status_code == 200:
-    approved_data = approved_response.json()
-    print("Approved Configurations Data:", approved_data)
-else:
-    print(f"Failed to retrieve approved configurations: {approved_response.status_code} - {approved_response.text}")
+# Main script
+if __name__ == '__main__':
+    # Step 1: Get the teamtechnicalid
+    teamtechnicalid = get_teamtechnicalid()
 
-# Optional: If you want to get Draft Configurations similarly, construct the URL and repeat
-draft_config_url = f"https://your-agora-url.com/api.v1/draft-aaf-config?teamtechnicalid={teamtechnicalid}"  # Replace with the actual dynamic ID.
-draft_response = session.get(draft_config_url, headers=headers)
-
-# Check if the response was successful
-if draft_response.status_code == 200:
-    draft_data = draft_response.json()
-    print("Draft Configurations Data:", draft_data)
-else:
-    print(f"Failed to retrieve draft configurations: {draft_response.status_code} - {draft_response.text}")
+    # Step 2: Use the teamtechnicalid to get the JSON response
+    if teamtechnicalid:
+        json_response = get_json_response(teamtechnicalid)
+        print("Approved Configurations JSON Response:")
+        print(json_response)
