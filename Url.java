@@ -56,6 +56,13 @@ try:
             print(f'Technical ID: {teamtechnicalid}')
             break  # Exit the loop if the ID is found
 
+                if "headers" in log_message["params"]["request"]:
+                headers = log_message["params"]["request"]["headers"]
+                for header in headers:
+                    if header["name"].lower() == "cookie":
+                        cookie_value = header["value"]
+                        print(f'Cookie: {cookie_value}')
+
     
     # Step 6: If the technical ID is found, make a call to the new URL
     if teamtechnicalid:
