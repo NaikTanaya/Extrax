@@ -1,65 +1,67 @@
-import requests
-import re
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-import time
 import json
+import time
+import requests
+from chromedriver_py import binary_path  # Automatically fetches the path to the ChromeDriver binary
 
-# Function to get the teamtechnicalid from the approved configurations page
-def get_teamtechnicalid():
-    # Initialize the WebDriver
-    driver = webdriver.Chrome()  # You can use webdriver-manager if desired
-    try:
-        # Step 1: Load the Agora homepage
-        driver.get('https://your-agora-url.com/')  # Replace with the actual URL
-        time.sleep(3)  # Wait for the page to load
+# Set up Chrome with the chromedriver_py binary path
+service = Service(binary_path)
+options = webdriver.ChromeOptions()
+# Uncomment the following line if you want to run Chrome in headless mode
+# options.add_argument('--headless')
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
 
-        # Step 2: Click on the "Approved Configurations" span
-        approved_configs_span = driver.find_element(By.XPATH, '//*[text()="Approved Configurations"]')
-        approved_configs_span.click()
-        time.sleep(3)  # Wait for the network requests to settle
+# Start the ChromeDriver service
+driver = webdriver.Chrome(service=service, options=options)
 
-        # Step 3: Capture the teamtechnicalid from the request URL
-        teamtechnicalid = None
-        for request in driver.requests:
-            if 'approved-aaf-configs' in request.url:
-                # Capture teamtechnicalid from the URL
-                match = re.search(r'teamtechnicalid=([^&]+)', request.url)
-                if match:
-                    teamtechnicalid = match.group(1)
-                    print(f"Team Technical ID: {teamtechnicalid}")
-                    break
+try:
+    # Step 1: Load the Agora homepage
+    driver.get('https://your-agora-url.com')  # Replace with the actual URL
 
-        return teamtechnicalid
+    # Step 2: Navigate directly to draft/list URL
+    driver.get('https://your-agora-url.com/draft/list')  # Replace with the actual draft/list URL
 
-    finally:
-        # Close the browser
-        driver.quit()
+    time.sleep(3)  # Wait for the page to load
 
-# Function to get JSON response from the endpoint
-def get_json_response(teamtechnicalid):
-    url = f'https://your-agora-url.com/approved-aaf-configs?teamtechnicalid={teamtechnicalid}'  # Replace with actual URL
-    response = requests.get(url)
-    
-    # Check for a successful response
-    if response.status_code == 200:
-        return response.json()  # Return JSON response as a dictionary
-    else:
-        print(f"Failed to retrieve data: {response.status_code}")
-        return None
+    # Step 3: Click on approved-configs span
+    approved_configs_span = driver.find_element(By.XPATH, "//span[text()='Approved Configurations']")
+    approved_configs_span.click()
 
-# Main script
-if __name__ == '__main__':
-    # Step 1: Get the teamtechnicalid
-    teamtechnicalid = get_teamtechnicalid()
+    # Step 4: Capture the response for approved-aaf-configs
+    time.sleep(3)  # Wait for the request to complete
+    logs = driver.get_log("performance")
 
-    # Step 2: Use the teamtechnicalid to get the JSON response
+    teamtechnicalid = None  # Initialize the variable to store the technical ID
+
+    # Step 5: Extract the technical ID from the logs
+    for entry in logs:
+        if 'approved-aaf-configs' in entry['message']:
+            message = json.loads(entry['message'])
+            # Extract the technical ID from the payload
+            teamtechnicalid = message.get('payload', {}).get('teamtechnicalid', None)
+            if teamtechnicalid:
+                print(f'Technical ID: {teamtechnicalid}')
+                break  # Exit the loop if the ID is found
+
+    # Step 6: If the technical ID is found, make a call to the new URL
     if teamtechnicalid:
-        json_response = get_json_response(teamtechnicalid)
+        new_url = f'https://your-agora-url.com/approved-aaf-configs?teamtechnicalid={teamtechnicalid}'  # Construct the new URL
+        response = requests.get(new_url)  # Make a GET request to the new URL
 
-        # Store the JSON response
-        if json_response:
-            # Here you can either print or save the JSON response to a file
-            with open('approved_configs.json', 'w') as json_file:
-                json.dump(json_response, json_file, indent=4)  # Save to a file
-            print("Approved Configurations JSON Response stored successfully.")
+        # Step 7: Store the JSON response into a dictionary (or map)
+        if response.status_code == 200:
+            api_response = response.json()  # Parse the JSON response
+            # Store the response in a map
+            response_data_map = {
+                'response': api_response,
+                'teamtechnicalid': teamtechnicalid  # Optionally store the technical ID
+            }
+            print("Stored API Response:", response_data_map)
+        else:
+            print(f'Failed to retrieve data. Status Code: {response.status_code}')
+
+finally:
+    driver.quit()  # Clean up and close the browser
