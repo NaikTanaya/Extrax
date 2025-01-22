@@ -1,92 +1,99 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-import json
-import time
-import requests
-from chromedriver_py import binary_path  # Automatically fetches the path to the ChromeDriver binary
+import subprocess
+import sys
+import multiprocessing
 
-# Set up Chrome with the chromedriver_py binary path
-service = Service(binary_path)
-options = webdriver.ChromeOptions()
-# Uncomment the following line if you want to run Chrome in headless mode
-# options.add_argument('--headless')
-options.add_argument('--no-sandbox')
-options.add_argument('--disable-dev-shm-usage')
+# Define available clusters and namespaces
+ikp_clusters = {
+    'cbcc-ap-app-uat-403x': 'wsit-payments-cbcc-ap-app-uat',
+    'cbcc-ap-kafka-uat-403x': 'wsit-payments-cbcc-ap-kafka-uat',
+    'cbcc-eu-app-uat-401x': 'wsit-payments-cbcc-eu-app-uat',
+    'cbcc-eu-kafka-uat-401x': 'wsit-payments-cbcc-eu-kafka-uat',
+}
 
-# Enable performance logging
-capabilities = webdriver.DesiredCapabilities.CHROME
-capabilities["goog:loggingPrefs"] = {"performance": "ALL"}
+def login_to_cluster(alias, namespace):
+    """
+    Log in to the selected cluster and set the kubectl context.
+    """
+    try:
+        print(f"Logging in to alias: {alias}, namespace: {namespace}")
+        
+        # Set kubectl context for the cluster
+        kubectl_command = f"kubectl config set-context --current --cluster={alias} --namespace={namespace}"
+        subprocess.run(kubectl_command, shell=True, check=True)
 
-driver = webdriver.Chrome(service=service, options=options, desired_capabilities=capabilities)
+        # Set the namespace as default
+        kubectl_command_namespace = f"kubectl config set-context --current --namespace={namespace}"
+        subprocess.run(kubectl_command_namespace, shell=True, check=True)
 
-try:
-    # Step 1: Load the Agora homepage
-    driver.get('https://your-agora-url.com')  # Replace with the actual URL
+        print(f"Switched to context for alias {alias} and set namespace {namespace} as default.")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"Error during kubectl configuration for {alias}: {e}")
+        sys.exit(1)
 
-    login_button = driver.find_element(By.XPATH, '//button[contains(text(), "Login")]')  # Adjust the XPath if necessary
-    login_button.click()
+def run_kubectl_command_on_cluster(alias, command):
+    """
+    Run a kubectl command on the specified cluster.
+    """
+    try:
+        print(f"Running command on {alias}: {command}")
+        kubectl_command = f"kubectl --context={alias} {command}"
+        subprocess.run(kubectl_command, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error running kubectl command on {alias}: {e}")
 
+def handle_multiple_clusters():
+    """
+    Handle login to multiple clusters and execute commands on them.
+    """
+    # Take two cluster aliases from the user
+    if len(sys.argv) < 3:
+        print("Usage: python ikp_login.py <alias_1> <alias_2> [command]")
+        sys.exit(1)
 
-    
+    alias_1 = sys.argv[1]
+    alias_2 = sys.argv[2]
+    command = " ".join(sys.argv[3:]) if len(sys.argv) > 3 else "get pods"
 
-    # Step 2: Navigate directly to draft/list URL
-    driver.get('https://your-agora-url.com/draft/list')  # Replace with the actual draft/list URL
+    # Ensure aliases exist in the available clusters
+    if alias_1 not in ikp_clusters or alias_2 not in ikp_clusters:
+        print("Both aliases must be valid cluster aliases.")
+        print("Available clusters:")
+        for key in ikp_clusters.keys():
+            print(key)
+        sys.exit(1)
 
-    time.sleep(3)  # Wait for the page to load
+    namespace_1 = ikp_clusters[alias_1]
+    namespace_2 = ikp_clusters[alias_2]
 
-    # Step 3: Click on approved-configs span
-    approved_configs_span = driver.find_element(By.XPATH, "//span[text()='Approved Configurations']")
-    approved_configs_span.click()
+    # Create separate processes for each cluster login
+    process_1 = multiprocessing.Process(target=login_to_cluster, args=(alias_1, namespace_1))
+    process_2 = multiprocessing.Process(target=login_to_cluster, args=(alias_2, namespace_2))
 
-    # Step 4: Capture the response for approved-aaf-configs
-    time.sleep(3)  # Wait for the request to complete
-    logs = driver.get_log("performance")
+    # Start both processes concurrently
+    process_1.start()
+    process_2.start()
 
-    teamtechnicalid = None  # Initialize the variable to store the technical ID
+    # Wait for both processes to finish
+    process_1.join()
+    process_2.join()
 
-   for entry in logs:
-    log_message = json.loads(entry["message"])["message"]
-    # Ensure this log entry is a network request and has the required fields
-    if log_message.get("method") == "Network.requestWillBeSent" and "request" in log_message["params"]:
-        request_url = log_message["params"]["request"].get("url", "")
-        if 'approved-aaf-configs' in request_url:
-            # Extract the teamtechnicalid from the end of the request URL
-            teamtechnicalid = request_url.split("teamtechnicalid=")[-1]
-            print(f'Technical ID: {teamtechnicalid}')
-            break  # Exit the loop if the ID is found
+    print("Both clusters logged in successfully.")
 
-# Retrieve all cookies
-cookies = driver.get_cookies()
-cookie_value = None
+    # Run kubectl commands on both clusters
+    print("\nRunning kubectl commands on both clusters:")
+    process_3 = multiprocessing.Process(target=run_kubectl_command_on_cluster, args=(alias_1, command))
+    process_4 = multiprocessing.Process(target=run_kubectl_command_on_cluster, args=(alias_2, command))
 
-# Find the specific cookie
-for cookie in cookies:
-    if cookie['name'] == 'your_cookie_name':  # Replace with the actual cookie name you're looking for
-        cookie_value = cookie['value']
-        print(f'Cookie: {cookie_value}')
-        break  # Stop if the cookie is found
+    # Start processes for kubectl commands
+    process_3.start()
+    process_4.start()
 
-if not cookie_value:
-    print("Cookie not found.")
+    # Wait for kubectl commands to complete
+    process_3.join()
+    process_4.join()
 
-    
-    # Step 6: If the technical ID is found, make a call to the new URL
-    if teamtechnicalid:
-        new_url = f'https://your-agora-url.com/approved-aaf-configs?teamtechnicalid={teamtechnicalid}'  # Construct the new URL
-        response = requests.get(new_url)  # Make a GET request to the new URL
+    print("\nCompleted kubectl commands on both clusters.")
 
-        # Step 7: Store the JSON response into a dictionary (or map)
-        if response.status_code == 200:
-            api_response = response.json()  # Parse the JSON response
-            # Store the response in a map
-            response_data_map = {
-                'response': api_response,
-                'teamtechnicalid': teamtechnicalid  # Optionally store the technical ID
-            }
-            print("Stored API Response:", response_data_map)
-        else:
-            print(f'Failed to retrieve data. Status Code: {response.status_code}')
-
-finally:
-    driver.quit()  # Clean up and close the browser
+if __name__ == "__main__":
+    handle_multiple_clusters()
