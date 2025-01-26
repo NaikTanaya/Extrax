@@ -1,3 +1,7 @@
+import sys
+import subprocess
+from kafka_config import ikp_clusters  # Assuming this holds the cluster info
+
 def main():
     if len(sys.argv) < 2:
         print('Usage:', sys.argv[0], 'cluster_name')
@@ -8,12 +12,36 @@ def main():
     # Check if cluster exists in the configuration
     if cluster_name in ikp_clusters:
         cluster_info = ikp_clusters[cluster_name]
-        namespace = cluster_info[1][0]  # Assuming first namespace from the list
+        namespaces = cluster_info[1]  # List of namespaces
         user = cluster_info[0]  # Assuming user info is the first element
+
         print(f"alias = {cluster_name}")
-        print(f"namespace = {namespace}")
         print(f"user = {user}")
-        login(cluster_name, namespace, user)
+
+        if len(namespaces) > 1:
+            # Multiple namespaces, ask user to select one
+            print("Multiple namespaces found, please select one:")
+            for idx, namespace in enumerate(namespaces, 1):
+                print(f"{idx}: {namespace}")
+
+            # Get user selection
+            try:
+                selection = int(input("Enter the number of your selected namespace: "))
+                if 1 <= selection <= len(namespaces):
+                    namespace = namespaces[selection - 1]
+                    print(f"namespace = {namespace}")
+                    login(cluster_name, namespace, user)
+                else:
+                    print("Invalid selection.")
+                    exit()
+            except ValueError:
+                print("Invalid input.")
+                exit()
+        else:
+            # Only one namespace, no need to ask for selection
+            namespace = namespaces[0]
+            print(f"namespace = {namespace}")
+            login(cluster_name, namespace, user)
     else:
         print('Invalid cluster name. Please provide a valid cluster.')
         exit()
