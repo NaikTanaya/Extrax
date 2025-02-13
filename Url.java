@@ -1,15 +1,19 @@
-import yaml
+import re
 import json
 
-# Function to extract values from nested YAML
-def extract_authz_values(data):
-    authz_mode = data.get("authz.mode")
-    authz_ignored = data.get("authz.ignored")
-    authz_url = data.get("authz.url")
-    authz_teammail = data.get("authz.teammail")
-    authz_rule = data.get("authz.rule", {})
+# Function to extract key-value pairs from plain text
+def extract_authz_values(text):
+    # Regular expressions to match key-value pairs
+    authz_mode = re.search(r"authz\.mode:\s*(\S+)", text)
+    authz_ignored = re.search(r"authz\.ignored:\s*(\S+)", text)
+    authz_url = re.search(r"authz\.url:\s*(\S+)", text)
+    authz_teammail = re.search(r"authz\.teammail:\s*(\S+)", text)
+    
+    # Extract JSON-like part for authz.rule
+    authz_rule_match = re.search(r"authz\.rule:\s*({.*?})", text, re.DOTALL)
+    authz_rule = json.loads(authz_rule_match.group(1)) if authz_rule_match else {}
 
-    # Extracting nested values from authz.rule
+    # Extract nested values from authz.rule
     owned_by_team = authz_rule.get("ownedbyteam")
     jira = authz_rule.get("jira")
     auth_resources = authz_rule.get("authResources", [])
@@ -21,7 +25,7 @@ def extract_authz_values(data):
         path = resource.get("path")
         groups = resource.get("groups", {})
 
-        # Extracting values from nested groups
+        # Extract values from nested groups
         groups_at_least_one = groups.get("groupsatleastone")
         required_internal_token = groups.get("requiredinternaltoken")
 
@@ -32,12 +36,12 @@ def extract_authz_values(data):
             "required_internal_token": required_internal_token
         })
 
-    # Storing values in a dictionary
+    # Store extracted values
     extracted_data = {
-        "authz_mode": authz_mode,
-        "authz_ignored": authz_ignored,
-        "authz_url": authz_url,
-        "authz_teammail": authz_teammail,
+        "authz_mode": authz_mode.group(1) if authz_mode else None,
+        "authz_ignored": authz_ignored.group(1) if authz_ignored else None,
+        "authz_url": authz_url.group(1) if authz_url else None,
+        "authz_teammail": authz_teammail.group(1) if authz_teammail else None,
         "owned_by_team": owned_by_team,
         "jira": jira,
         "auth_resource_service": auth_resource_service,
@@ -46,21 +50,18 @@ def extract_authz_values(data):
 
     return extracted_data
 
-
-# Function to read YAML file
-def read_yaml_file(file_path):
+# Function to read a plain text file
+def read_plain_text_file(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
-            data = yaml.safe_load(file)  # Load YAML data
-            return extract_authz_values(data)
-    except yaml.YAMLError:
-        print("Error: File does not contain valid YAML")
+            text = file.read()  # Read full content
+            return extract_authz_values(text)
     except Exception as e:
         print(f"Error reading file: {e}")
 
 # Example usage
-file_path = "your_file.yaml"  # Replace with your YAML file path
-result = read_yaml_file(file_path)
+file_path = "your_file.txt"  # Replace with your file path
+result = read_plain_text_file(file_path)
 
 # Display extracted values
 if result:
