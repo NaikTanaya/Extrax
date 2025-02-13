@@ -83,5 +83,6 @@ except Exception as e:
 
 
               
-if any("groupsAtLeastOne" in resource.get("groups", {}) for resource in extracted_data.get("auth_resources", [])):
-    print("At least one 'groupsAtLeastOne' found in auth_resources")
+edit_button = driver.find_element(By.XPATH, '//div[contains(text(), "All Permit (strict)")]/following-sibling::button[contains(@class, "edit")]')
+edit_button.click()
+
