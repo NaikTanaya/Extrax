@@ -83,22 +83,5 @@ except Exception as e:
 
 
               
-# Step 2: Find all selected options
-selected_options = driver.find_elements(By.XPATH, '//mat-option[@aria-selected="true"]')
-
-# Step 3: Deselect all options **except** the required one
-for option in selected_options:
-    method_text = option.find_element(By.XPATH, './/span[contains(@class, "mdc-list-item_primary-text")]').text.strip().upper()
-    
-    if method_text != selected_method:  # Deselect only if it's not the correct method
-        checkbox = option.find_element(By.XPATH, './/mat-pseudo-checkbox')
-        checkbox.click()
-        time.sleep(0.5)  # Short delay to prevent UI glitches
-
-# Step 4: If the correct method is not already selected, select it
-try:
-    correct_option = driver.find_element(By.XPATH, f'//mat-option[.//span[text()="{selected_method}"]]//mat-pseudo-checkbox')
-    if "mat-pseudo-checkbox-checked" not in correct_option.get_attribute("class"):  # Ensure it’s not already selected
-        correct_option.click()  # Click to select the required method
-except Exception as e:
-    print(f"Error selecting method {selected_method}: {e}")
+if any("groupsAtLeastOne" in resource.get("groups", {}) for resource in extracted_data.get("auth_resources", [])):
+    print("At least one 'groupsAtLeastOne' found in auth_resources")
