@@ -77,3 +77,17 @@ except yaml.YAMLError as e:
     print("\n❌ YAML Parsing Error:", e)
 except Exception as e:
     print("\n❌ Unexpected Error:", e)
+
+
+
+ if method_text != selected_method:
+            # Deselect all other checkboxes
+            ActionChains(driver).move_to_element(checkbox).click().perform()
+        else:
+            # Select the correct checkbox
+            ActionChains(driver).move_to_element(checkbox).click().perform()
+            print(f"✅ Selected Method: {method_text}")
+
+    except Exception as e:
+        print(f"⚠️ Error with option {option.text}: {e}")
+              
