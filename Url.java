@@ -80,24 +80,29 @@ except Exception as e:
 
 
 
+
+
+              
+# Step 3: Deselect all currently selected options
+selected_options = driver.find_elements(By.XPATH, '//mat-option[@aria-selected="true"]')
+for option in selected_options:
+    checkbox = option.find_element(By.XPATH, './/mat-pseudo-checkbox')  # Locate the checkbox
+    checkbox.click()  # Deselect all first
+
+time.sleep(1)  # Small delay for UI update
+
+# Step 4: Find and select the correct method
 try:
-    # Step 3: Locate all available method options inside mat-option
-    all_options = driver.find_elements(By.XPATH, '//mat-option//span[contains(@class, "mdc-list-text")]')
+    # Find mat-option that contains the correct method text
+    method_option = WebDriverWait(driver, 5).until(
+        EC.element_to_be_clickable((By.XPATH, f'//mat-option[.//span[contains(text(), "{selected_method}")]]'))
+    )
 
-    for option in all_options:
-        method_text = option.text.strip().upper()
-        
-        # Step 4: Deselect all options first
-        checkbox = option.find_element(By.XPATH, './preceding-sibling::mat-pseudo-checkbox')
-        if checkbox.get_attribute("class").endswith("checked"):  # If already selected, click to unselect
-            checkbox.click()
-            time.sleep(0.5)
-
-        # Step 5: Select the correct method
-        if method_text == selected_method:
-            ActionChains(driver).move_to_element(option).click().perform()
-            print(f"✅ Selected Method: {selected_method}")
-            break  # Stop after selecting the correct one
+    # Click the checkbox inside the correct mat-option
+    checkbox = method_option.find_element(By.XPATH, './/mat-pseudo-checkbox')
+    ActionChains(driver).move_to_element(checkbox).click().perform()
+    
+    print(f"✅ Selected Method: {selected_method}")
 
 except Exception as e:
     print(f"⚠️ Error selecting method {selected_method}: {e}")
