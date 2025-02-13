@@ -83,6 +83,12 @@ except Exception as e:
 
 
               
-edit_button = driver.find_element(By.XPATH, '//div[contains(text(), "All Permit (strict)")]/following-sibling::button[contains(@class, "edit")]')
-edit_button.click()
+edit_button = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.mat-icon-button'))
+)
+# Optionally, confirm the mat-icon text inside is "edit"
+mat_icon = edit_button.find_element(By.XPATH, './/mat-icon[text()="edit"]')
+driver.execute_script("arguments[0].scrollIntoView(true);", edit_button)
+time.sleep(0.5)
+driver.execute_script("arguments[0].click();", edit_button)
 
