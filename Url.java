@@ -80,14 +80,18 @@ except Exception as e:
 
 
 
- if method_text != selected_method:
-            # Deselect all other checkboxes
-            ActionChains(driver).move_to_element(checkbox).click().perform()
-        else:
-            # Select the correct checkbox
-            ActionChains(driver).move_to_element(checkbox).click().perform()
-            print(f"✅ Selected Method: {method_text}")
+try:
+    # Use `contains(text(), "...")` to find the correct option dynamically
+    method_option = WebDriverWait(driver, 5).until(
+        EC.element_to_be_clickable((By.XPATH, f'//span[contains(text(), "{selected_method}")]'))
+    )
 
-    except Exception as e:
-        print(f"⚠️ Error with option {option.text}: {e}")
-              
+    # Use ActionChains to ensure the click registers
+    ActionChains(driver).move_to_element(method_option).click().perform()
+    
+    print(f"✅ Selected Method: {selected_method}")
+
+except Exception as e:
+    print(f"⚠️ Error selecting method {selected_method}: {e}")
+
+time.sleep(2)  # Allow UI update before proceeding
