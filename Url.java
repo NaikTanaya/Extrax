@@ -81,15 +81,23 @@ except Exception as e:
 
 
 try:
-    # Use `contains(text(), "...")` to find the correct option dynamically
-    method_option = WebDriverWait(driver, 5).until(
-        EC.element_to_be_clickable((By.XPATH, f'//span[contains(text(), "{selected_method}")]'))
-    )
+    # Step 3: Locate all available method options inside mat-option
+    all_options = driver.find_elements(By.XPATH, '//mat-option//span[contains(@class, "mdc-list-text")]')
 
-    # Use ActionChains to ensure the click registers
-    ActionChains(driver).move_to_element(method_option).click().perform()
-    
-    print(f"✅ Selected Method: {selected_method}")
+    for option in all_options:
+        method_text = option.text.strip().upper()
+        
+        # Step 4: Deselect all options first
+        checkbox = option.find_element(By.XPATH, './preceding-sibling::mat-pseudo-checkbox')
+        if checkbox.get_attribute("class").endswith("checked"):  # If already selected, click to unselect
+            checkbox.click()
+            time.sleep(0.5)
+
+        # Step 5: Select the correct method
+        if method_text == selected_method:
+            ActionChains(driver).move_to_element(option).click().perform()
+            print(f"✅ Selected Method: {selected_method}")
+            break  # Stop after selecting the correct one
 
 except Exception as e:
     print(f"⚠️ Error selecting method {selected_method}: {e}")
