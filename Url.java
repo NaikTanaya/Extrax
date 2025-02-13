@@ -83,26 +83,32 @@ except Exception as e:
 
 
               
-# Step 3: Deselect all currently selected options
+# Step 3: Deselect all currently selected options **only if they are not the selected method**
 selected_options = driver.find_elements(By.XPATH, '//mat-option[@aria-selected="true"]')
+
 for option in selected_options:
-    checkbox = option.find_element(By.XPATH, './/mat-pseudo-checkbox')  # Locate the checkbox
-    checkbox.click()  # Deselect all first
+    option_text = option.find_element(By.XPATH, './/span[contains(@class, "mdc-list-item_primary-text")]').text.strip().upper()
+
+    if option_text != selected_method:  # Only click if it's NOT the desired method
+        checkbox = option.find_element(By.XPATH, './/mat-pseudo-checkbox')
+        checkbox.click()
+        print(f"❌ Deselected: {option_text}")
 
 time.sleep(1)  # Small delay for UI update
 
-# Step 4: Find and select the correct method
+# Step 4: Select the correct method only if it's not already selected
 try:
-    # Find mat-option that contains the correct method text
     method_option = WebDriverWait(driver, 5).until(
-        EC.element_to_be_clickable((By.XPATH, f'//mat-option[.//span[contains(text(), "{selected_method}")]]'))
+        EC.presence_of_element_located((By.XPATH, f'//mat-option[.//span[contains(text(), "{selected_method}")]]'))
     )
-
-    # Click the checkbox inside the correct mat-option
-    checkbox = method_option.find_element(By.XPATH, './/mat-pseudo-checkbox')
-    ActionChains(driver).move_to_element(checkbox).click().perform()
     
-    print(f"✅ Selected Method: {selected_method}")
+    # Check if already selected
+    if method_option.get_attribute("aria-selected") != "true":
+        checkbox = method_option.find_element(By.XPATH, './/mat-pseudo-checkbox')
+        ActionChains(driver).move_to_element(checkbox).click().perform()
+        print(f"✅ Selected Method: {selected_method}")
+    else:
+        print(f"✔️ {selected_method} was already selected, no need to click.")
 
 except Exception as e:
     print(f"⚠️ Error selecting method {selected_method}: {e}")
