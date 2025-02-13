@@ -3,21 +3,24 @@ import yaml
 # Define the file path
 file_path = "/mnt/data/file-XJtKbYYjacfjm2S8cVdvYT"
 
+# Read and clean the file (replace tabs with spaces)
+with open(file_path, "r", encoding="utf-8") as file:
+    content = file.read().replace("\t", " ")  # Replace all tabs with spaces
+
 try:
-    # Open the file with UTF-16 encoding
-    with open(file_path, "r", encoding="utf-16") as file:
-        yaml_content = yaml.safe_load(file)  # Parse YAML safely
+    # Load YAML content after cleaning
+    yaml_content = yaml.safe_load(content)
 
     # Navigate through the structure: kubernetes -> deployment -> Env
     env_data = yaml_content.get("kubernetes", {}).get("deployment", {}).get("Env", {})
 
-    # Extract all authz-related values
+    # Extract authz-related values
     extracted_data = {
         "authz_mode": env_data.get("authz.mode"),
         "authz_ignored": env_data.get("authz.ignored"),
         "authz_url": env_data.get("authz.url"),
         "authz_teammail": env_data.get("authz.teammail"),
-        "authz_rule": env_data.get("authz.rule", {}),  # Rule contains nested JSON
+        "authz_rule": env_data.get("authz.rule", {}),
     }
 
     # Extract deeper nested values from authz.rule
@@ -50,6 +53,3 @@ try:
 
 except yaml.YAMLError as e:
     print("YAML Parsing Error:", e)
-
-except UnicodeDecodeError as e:
-    print("Encoding Error:", e)
