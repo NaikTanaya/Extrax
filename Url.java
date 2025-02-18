@@ -83,12 +83,23 @@ except Exception as e:
 
 
               
-edit_button = WebDriverWait(driver, 10).until(
-    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.mat-icon-button'))
-)
-# Optionally, confirm the mat-icon text inside is "edit"
-mat_icon = edit_button.find_element(By.XPATH, './/mat-icon[text()="edit"]')
-driver.execute_script("arguments[0].scrollIntoView(true);", edit_button)
-time.sleep(0.5)
-driver.execute_script("arguments[0].click();", edit_button)
+if total_groups > 0:
+    # Find and enter the first value
+    first_input = driver.find_element(By.XPATH, "//input[contains(@name,'static-value') and contains(@name, '-0')]")
+    first_input.send_keys(group_values[0])
 
+# Loop through remaining values and dynamically add them
+for i, val in enumerate(group_values[1:], start=1):  # Start from index 1
+    try:
+        # Click "Add more"
+        add_more_button = driver.find_element(By.XPATH, '//span[text()="Add more"]')
+        add_more_button.click()
+        time.sleep(2)  # Wait for new input to appear
+
+        # Find new input field based on the incrementing number in 'name' attribute
+        new_input_xpath = f"//input[contains(@name, 'static-value') and contains(@name, '-{i}')]"
+        new_input_field = driver.find_element(By.XPATH, new_input_xpath)
+        new_input_field.send_keys(val)
+
+    except Exception as e:
+        print(f"Error adding more fields: {e}")
