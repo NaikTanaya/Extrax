@@ -72,3 +72,24 @@ if __name__ == "__main__":
     
     print("=== Running get_config_file() Test ===")
     get_config_file(test_url, test_namespace)
+
+
+
+// kubectl command getting executed
+def execute_kubectl_command(namespace):
+    """
+    Execute any kubectl command after authentication.
+    Modify the command as per your requirement.
+    """
+    try:
+        # Example: List all pods in the authenticated namespace
+        kubectl_command = f'kubectl get pods -n {namespace}'
+        
+        # Run in PowerShell
+        result = subprocess.run(["powershell.exe", kubectl_command], stdout=subprocess.PIPE, text=True)
+
+        print("\n==== KUBECTL OUTPUT ====")
+        print(result.stdout)  # Print command output
+        
+    except Exception as err:
+        print(f"Error executing kubectl command: {err}")
